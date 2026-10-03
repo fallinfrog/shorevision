@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1520">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ShoreVision">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ShoreVision</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#0b1520;--card:#12212f;--card2:#172b3d;--line:#24394d;--text:#eaf2f8;--muted:#9bb2c5;--accent:#2bb5f5;--accent2:#1a8fd0;--good:#3fd08a;--warn:#f0b429;--bad:#ef6b6b;--r:14px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{min-height:100vh;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit}
+header.top{position:sticky;top:0;z-index:20;background:rgba(11,21,32,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:calc(8px + env(safe-area-inset-top)) 16px 8px;display:flex;align-items:center;gap:10px}
+.mark{width:54px;height:36px;flex:none}
+.brand b{display:block;font-size:19px;letter-spacing:.2px;line-height:1.1}
+.brand b i{font-style:normal;font-weight:400}
+.brand span{font-size:11px;color:var(--muted);letter-spacing:.8px;text-transform:uppercase}
+.chip{margin-left:auto;font-size:12px;padding:4px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.live{color:var(--good);border-color:#1f5a40}.chip.demo{color:var(--warn);border-color:#6b5316}.chip.off{color:var(--bad);border-color:#6b2b2b}
+main{max-width:640px;margin:0 auto;padding:14px 16px}
+.tab{display:none}.tab.on{display:block}
+h2{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:22px 0 8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:10px 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--card2);cursor:pointer;font-weight:600}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#04121c}
+.btn.sm{min-height:38px;padding:0 12px;font-size:14px}
+.btn.block{display:flex;width:100%}
+.btn:active{transform:scale(.98)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--muted)}.small{font-size:13px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(11,21,32,.97);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{flex:1;background:none;border:0;padding:9px 0 8px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;min-height:58px;cursor:pointer}
+nav.tabs button[aria-selected=true]{color:var(--accent)}
+nav.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* welcome */
+.hero{text-align:center;padding:26px 6px 6px}
+.hero .mark{width:190px;height:125px}
+.hero h1{margin:6px 0 2px;font-size:30px;line-height:1.1}.hero h1 i{font-weight:400;font-style:normal}
+.hero p{color:var(--muted);margin:6px 0 18px}
+.steps{list-style:none;padding:0;margin:14px 0}
+.steps li{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);color:var(--muted)}
+.steps li.ok{color:var(--text)}.steps li.err{color:var(--warn)}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--muted);flex:none}
+.ok .dot{background:var(--good);border-color:var(--good)}.err .dot{background:var(--warn);border-color:var(--warn)}
+.run .dot{border-color:var(--accent);border-top-color:transparent;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+input[type=text],input[type=search],select,textarea{width:100%;min-height:46px;border-radius:12px;border:1px solid var(--line);background:#0c1a27;color:var(--text);padding:10px 12px;font:inherit}
+textarea{min-height:90px}
+/* conditions */
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.strip div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center}
+.strip span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.strip b{font-size:17px}
+.strip small{display:block;color:var(--muted);font-size:11px}
+.banner{border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px;border:1px solid}
+.banner.warn{background:#2a2209;border-color:#6b5316;color:#ffd978}.banner.bad{background:#2d1111;border-color:#6b2b2b;color:#ffb0b0}.banner.info{background:#0f2231;border-color:#25506f;color:#b6dcf5}
+.seg{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.seg button{flex:none;min-height:42px;padding:0 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);color:#04121c;border-color:var(--accent);font-weight:700}
+.headline{background:linear-gradient(135deg,#123a56,#12212f);border:1px solid #25506f;border-radius:var(--r);padding:14px;margin:12px 0}
+.headline small{color:#9fd3f2;text-transform:uppercase;letter-spacing:1px;font-size:11px}
+.headline b{display:block;font-size:20px;margin:3px 0}
+/* spot cards */
+.spot{padding:0;overflow:hidden}
+.spot .hd{display:flex;gap:12px;padding:12px 14px;align-items:center;cursor:pointer}
+.rank{width:34px;height:34px;border-radius:50%;background:var(--accent);color:#04121c;display:grid;place-items:center;font-weight:800;flex:none}
+.spot h3{margin:0;font-size:17px}
+.sig{margin-left:auto;font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.sig.Strong{background:#103a28;color:#6df0ac}.sig.Mixed{background:#3a3010;color:#ffd978}.sig.Limited{background:#3a1b1b;color:#ff9c9c}
+.spot .bd{padding:0 14px 14px;border-top:1px solid var(--line)}
+.fac{list-style:none;margin:10px 0;padding:0}
+.fac li{display:flex;gap:8px;margin:7px 0;font-size:14px}
+.fac i{font-style:normal;font-weight:800;width:18px;flex:none;text-align:center}
+.fac .plus{color:var(--good)}.fac .mid{color:var(--warn)}.fac .minus{color:var(--bad)}
+.watch{font-size:13px;color:#ffd978;margin:6px 0}
+/* bars */
+.bars{display:flex;gap:4px;align-items:flex-end;height:110px;margin-top:6px}
+.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:4px;min-width:0}
+.bar i{display:block;width:100%;border-radius:5px 5px 2px 2px;background:var(--accent2)}
+.bar.best i{background:var(--good)}
+.bar span{font-size:10px;color:var(--muted);white-space:nowrap}
+/* lures */
+.lures{display:grid;gap:10px}
+.lure{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.lure.best{border-color:var(--accent)}
+.lure svg{width:60px;height:38px;flex:none;color:var(--accent);margin-top:2px}
+.lure em{font-style:normal;font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;font-weight:700;display:block}
+.lure b{display:block}.lure span{font-size:14px;color:var(--muted)}
+/* map */
+.mapwrap{position:relative;height:62vh;min-height:360px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:#0a1722;touch-action:none}
+#map{width:100%;height:100%;display:block;touch-action:none;user-select:none}
+.mapbtns{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}
+.mapbtns button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(11,21,32,.9);font-size:20px;cursor:pointer}
+.attr{position:absolute;left:6px;bottom:4px;font-size:10px;color:#6f8aa0}
+/* camera */
+.camwrap{position:relative;height:68vh;min-height:380px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:linear-gradient(#26435a,#0f2433 55%,#0a1822)}
+.camwrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.camwrap canvas{position:absolute;inset:0;width:100%;height:100%}
+.camhud{position:absolute;left:8px;right:8px;top:8px;display:flex;justify-content:space-between;gap:8px;font-size:12px;pointer-events:none}
+.camhud span{background:rgba(5,12,20,.72);border-radius:8px;padding:4px 8px}
+/* sheet */
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:flex;align-items:flex-end}
+.sheet>div{background:var(--bg);border-top:1px solid var(--line);width:100%;max-width:640px;margin:0 auto;border-radius:18px 18px 0 0;max-height:86vh;overflow:auto;padding:14px 16px calc(20px + env(safe-area-inset-bottom))}
+.sheet h3{margin:4px 0 10px}
+.lakeitem{display:flex;justify-content:space-between;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;margin:8px 0;background:var(--card);cursor:pointer;width:100%;text-align:left}
+.lakeitem[aria-current=true]{border-color:var(--accent)}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--card2);font-size:20px;cursor:pointer}
+label.f{display:block;margin:10px 0 4px;font-size:13px;color:var(--muted)}
+.item{border-bottom:1px solid var(--line);padding:10px 0}
+.item:last-child{border:0}
+.pill{font-size:11px;padding:2px 7px;border-radius:99px;background:var(--card2);color:var(--muted);margin-left:6px}
+a{color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(78px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#e8f4fc;color:#07202f;padding:10px 16px;border-radius:12px;z-index:60;font-weight:600;max-width:90%}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<linearGradient id="svEye" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a86d0"/><stop offset=".55" stop-color="#23508f"/><stop offset="1" stop-color="#14325f"/></linearGradient>
+<linearGradient id="svFish" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#52c8ff"/><stop offset="1" stop-color="#1c9be2"/></linearGradient>
+<clipPath id="svClip"><circle cx="100" cy="66" r="46"/></clipPath>
+<symbol id="sv-mark" viewBox="0 0 200 132">
+<path d="M3 66C40 4 160 4 197 66C160 128 40 128 3 66Z" fill="url(#svEye)"/>
+<path d="M17 66C50 18 150 18 183 66C150 114 50 114 17 66Z" fill="#17386b" stroke="#0e2850" stroke-width="2"/>
+<circle cx="100" cy="66" r="52" fill="#0c1a2c" stroke="#2f78c8" stroke-width="6"/>
+<circle cx="100" cy="66" r="47" fill="none" stroke="#08111d" stroke-width="2"/>
+<g clip-path="url(#svClip)">
+<g fill="none" stroke="#2bb5f5" stroke-width="4.6" stroke-linecap="butt">
+<path d="M86 70A14 14 0 0 0 114 70"/><path d="M76 70A24 24 0 0 0 124 70"/><path d="M66 70A34 34 0 0 0 134 70"/><path d="M56 70A44 44 0 0 0 144 70"/>
+<path d="M62 30A44 44 0 0 1 90 21" stroke-width="3.6"/>
+</g>
+<g transform="translate(45.5 14.5) scale(.165)"><path fill="url(#svFish)" fill-rule="evenodd" d="M399 380 L392 379 L389 381 L386 394 L378 410 L365 427 L343 447 L344 455 L350 455 L371 437 L372 419 L386 419 L399 391Z M491 90 L488 90 L477 106 L476 101 L481 88 L479 90 L394 90 L359 94 L332 100 L300 111 L268 127 L236 148 L210 171 L208 169 L225 149 L223 144 L229 143 L239 136 L239 133 L234 130 L237 129 L245 131 L255 124 L255 122 L248 116 L249 115 L262 120 L271 115 L270 111 L265 106 L266 104 L279 111 L288 106 L290 103 L301 103 L301 99 L288 86 L283 89 L275 90 L268 85 L264 90 L260 91 L244 88 L242 89 L242 99 L235 103 L230 101 L237 97 L238 93 L236 92 L218 95 L198 101 L198 143 L199 130 L204 118 L210 112 L223 105 L226 108 L226 113 L222 119 L213 121 L216 126 L216 130 L212 134 L206 136 L206 149 L198 155 L200 161 L200 166 L198 169 L198 199 L183 200 L180 203 L165 231 L151 272 L148 276 L146 275 L146 271 L149 262 L146 261 L140 264 L137 263 L152 251 L152 246 L149 245 L138 249 L135 248 L156 236 L158 230 L156 229 L137 235 L135 234 L140 230 L163 220 L165 215 L158 215 L142 220 L141 219 L159 209 L176 203 L177 200 L165 200 L159 202 L155 201 L157 200 L139 200 L127 212 L119 228 L116 242 L117 263 L123 276 L132 286 L147 292 L146 331 L151 360 L165 395 L179 415 L196 433 L269 469 L332 527 L343 528 L335 484 L321 450 L329 438 L333 428 L343 389 L343 383 L335 382 L319 386 L302 395 L274 416 L268 418 L257 417 L243 410 L236 402 L231 387 L229 386 L225 390 L220 404 L220 425 L223 436 L222 440 L214 427 L211 417 L211 398 L214 387 L226 367 L243 352 L252 346 L318 314 L343 298 L344 300 L340 306 L326 320 L331 352 L334 353 L338 351 L348 341 L364 310 L370 289 L372 290 L372 305 L363 329 L363 334 L371 340 L374 339 L382 315 L384 284 L399 276 L400 261 L422 261 L428 256 L426 253 L409 253 L396 250 L374 239 L354 220 L339 198 L331 190 L319 182 L337 146 L354 126 L355 128 L344 148 L337 174 L378 207 L374 208 L357 200 L355 201 L355 203 L363 210 L388 220 L420 223 L410 227 L391 229 L389 232 L395 234 L415 234 L434 229 L436 230 L430 235 L419 239 L421 242 L432 241 L444 237 L467 223 L468 224 L463 232 L451 246 L451 248 L455 248 L477 226 L511 206 L545 174 L551 164 L551 154 L549 151 L541 148 L520 147 L520 103 L509 98 L514 114 L516 151 L539 153 L540 155 L518 163 L491 166 L478 180 L473 183 L464 183 L457 179 L454 175 L454 160 L466 136 L467 140 L464 151 L463 168 L465 171 L471 172 L480 166 L483 136 L488 114 L494 100 L501 95Z M343 244 L324 263 L310 271 L300 273 L284 268 L263 257 L249 246 L248 239 L256 231 L280 221 L300 217 L333 217 L336 219 L333 221 L308 226 L306 229 L321 230 L310 235 L310 237 L313 238 L325 235 L326 236 L318 241 L318 243 L320 244 L328 241 L329 243 L324 247 L326 250 L333 246Z M383 143 L388 171 L399 190 L411 198 L418 200 L436 200 L437 201 L435 203 L420 208 L409 208 L399 204 L389 194 L382 180 L380 169 L380 153Z M431 103 L441 101 L447 104 L451 110 L450 117 L444 122 L443 116 L438 115 L434 119 L434 124 L429 122 L425 116 L425 111Z"/></g>
+</g>
+</symbol></defs></svg>
+
+<header class="top">
+  <svg class="mark" aria-hidden="true"><use href="#sv-mark"/></svg>
+  <div class="brand"><b>Shore<i>Vision</i></b><span>Read the water, find the fish</span></div>
+  <div class="chip" id="chip">Ready</div>
+</header>
+
+<main>
+<!-- WELCOME / LOADING -->
+<section id="welcome" class="tab on">
+  <div class="hero">
+    <svg class="mark" aria-hidden="true"><use href="#sv-mark"/></svg>
+    <h1>Shore<i>Vision</i></h1>
+    <p>Finds lakes near you, reads today's weather, and tells you where to cast, when, and with what.</p>
+  </div>
+  <button class="btn pri block" id="goGps">Find fishing spots near me</button>
+  <div class="row" style="margin-top:10px">
+    <button class="btn block" id="goSearch" style="flex:1">Search a place</button>
+    <button class="btn block" id="goDemo" style="flex:1">Try demo lake</button>
+  </div>
+  <div id="searchBox" hidden class="card">
+    <label class="f" for="q">Town, lake or address</label>
+    <input type="search" id="q" placeholder="e.g. Lake Hartwell, SC" autocomplete="off">
+    <div class="row" style="margin-top:10px"><button class="btn pri" id="qGo">Search</button></div>
+    <div id="qRes"></div>
+  </div>
+  <ul class="steps" id="steps" hidden></ul>
+  <div id="loadErr" class="banner warn" hidden></div>
+  <div id="resume" class="card" hidden></div>
+  <p class="muted small" style="margin-top:22px">No account or sign-up. Your location stays on your phone and is only used to look up nearby lakes and weather. Lake outlines come from OpenStreetMap; weather from the National Weather Service (US).</p>
+</section>
+
+<!-- TODAY -->
+<section id="today" class="tab">
+  <div class="row" style="justify-content:space-between">
+    <button class="btn sm" id="lakeBtn">Lake</button>
+    <button class="btn sm" id="refreshBtn">Refresh</button>
+  </div>
+  <div id="alerts"></div>
+  <div id="strip" class="strip" style="margin-top:10px"></div>
+  <div class="row small muted" style="margin-top:6px;justify-content:space-between"><span id="wxSrc"></span><button class="btn sm" id="condBtn">Adjust conditions</button></div>
+  <h2>What are you fishing for?</h2>
+  <div class="seg" id="species"></div>
+  <div class="seg" id="distf" style="margin-top:8px"></div>
+  <div id="headline"></div>
+  <h2>Best spots on this lake</h2>
+  <div id="spots"></div>
+  <h2 id="bwTitle">Best time today</h2>
+  <div class="card"><div class="bars" id="bars"></div><div class="small muted" id="barNote" style="margin-top:8px"></div></div>
+  <h2>What to throw</h2>
+  <div class="lures" id="lures"></div>
+  <p class="muted small" style="margin-top:20px">Depth is not measured. Spot picks come from the lake's shoreline shape, today's weather, the season and general fish behavior. Treat them as a smart starting point, then trust what you see on the water.</p>
+</section>
+
+<!-- MAP -->
+<section id="map-tab" class="tab">
+  <div class="mapwrap"><svg id="map" role="img" aria-label="Map of nearby lakes and spots"></svg>
+    <div class="mapbtns"><button id="mFit" aria-label="Fit lake">⤢</button><button id="mMe" aria-label="Center on me">◎</button><button id="mIn" aria-label="Zoom in">+</button><button id="mOut" aria-label="Zoom out">−</button></div>
+    <div class="attr">© OpenStreetMap contributors</div></div>
+  <div class="small muted" id="mapNote" style="margin-top:8px">Tap a pin for details. Glow shows how strong the spot looks today.</div>
+</section>
+
+<!-- CAMERA -->
+<section id="cam-tab" class="tab">
+  <div class="camwrap" id="camwrap"><video id="vid" playsinline muted autoplay></video><canvas id="cv"></canvas>
+    <div class="camhud"><span id="hudHead">Heading --</span><span id="hudNote"></span></div></div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn pri" id="camStart">Start camera view</button>
+    <button class="btn" id="camStop" hidden>Stop</button>
+  </div>
+  <div id="camManual" class="card" hidden>
+    <label class="f" for="hdg">No compass detected. Turn the view by hand: <b id="hdgv">0°</b></label>
+    <input type="range" id="hdg" min="0" max="359" value="0" style="width:100%">
+  </div>
+  <p class="muted small">Point your phone at the water. Pins show where each spot is, how far away, and how strong it looks. If pins drift, wave the phone in a figure-8 to calibrate its compass.</p>
+</section>
+
+<!-- LOG -->
+<section id="log-tab" class="tab">
+  <div class="row"><button class="btn pri" id="logAdd">Log a catch</button><button class="btn" id="shareBtn">Share my day</button></div>
+  <h2>Catches</h2><div id="catches"></div>
+  <h2>Plans</h2><div id="plans"></div>
+  <h2>How is ShoreVision working for you?</h2>
+  <div class="card"><label class="f" for="fb">Anything missing, wrong, or confusing? Notes save on your phone and you can send them with Share.</label>
+  <textarea id="fb" placeholder="What worked, what didn't, what you'd want it to do"></textarea></div>
+  <h2>About this data</h2>
+  <div class="card small muted" id="about">
+    <p style="margin-top:0"><b style="color:var(--text)">Lakes and shorelines:</b> OpenStreetMap contributors (ODbL). Coverage and names vary; if a lake is missing it may not be mapped yet.</p>
+    <p><b style="color:var(--text)">Weather:</b> US National Weather Service (api.weather.gov). Pressure trend comes from the nearest reporting station.</p>
+    <p><b style="color:var(--text)">Water temperature:</b> estimated from air temperature and season, not measured. Adjust it if you know better.</p>
+    <p><b style="color:var(--text)">Depth:</b> not available for most lakes, so spots are ranked from shoreline shape, not a depth map. This is an advisor, not a fish finder.</p>
+    <p style="margin-bottom:0"><b style="color:var(--text)">Safety:</b> check local fishing rules, regulations and land access. Stay off the water in storms.</p>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="btn sm" id="resetBtn">Clear saved data</button></div>
+</section>
+</main>
+
+<nav class="tabs" id="nav" hidden>
+  <button data-t="today" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg>Today</button>
+  <button data-t="map-tab"><svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>Map</button>
+  <button data-t="cam-tab"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Camera</button>
+  <button data-t="log-tab"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/></svg>Log</button>
+</nav>
+
+<div id="sheet" class="sheet" hidden><div id="sheetBody"></div></div>
+
+<script>
+"use strict";
+/* ============ helpers ============ */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const D2R=Math.PI/180,R2D=180/Math.PI;
+const DIRS={N:0,NNE:22.5,NE:45,ENE:67.5,E:90,ESE:112.5,SE:135,SSE:157.5,S:180,SSW:202.5,SW:225,WSW:247.5,W:270,WNW:292.5,NW:315,NNW:337.5};
+const DIRN=Object.keys(DIRS);
+const dirName=d=>DIRN[Math.round((((d%360)+360)%360)/22.5)%16];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const clamp01=v=>clamp(v,0,1);
+const angDiff=(a,b)=>{const d=Math.abs(a-b)%360;return d>180?360-d:d};
+const rel180=d=>((d%360)+540)%360-180;
+const TIMES={dawn:"Dawn",morning:"Morning",midday:"Midday",afternoon:"Afternoon",dusk:"Dusk",night:"Night"};
+const KEY="shorevision-v3";
+let toastT;function toast(m){let t=$(".toast");if(t)t.remove();t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),2600)}
+function fmtDist(m){if(m==null||isNaN(m))return"";const ft=m*3.28084;return ft<900?Math.round(ft/10)*10+" ft":(m/1609.34).toFixed(m<16093?2:1)+" mi"}
+function fmtAcres(m2){const a=m2/4046.86;return a<10?a.toFixed(1)+" ac":a<640?Math.round(a)+" ac":(a/640).toFixed(1)+" sq mi"}
+function fmtHour(d){let h=d.getHours(),ap=h>=12?"p":"a";h=h%12||12;return h+ap}
+function fmtTime(d){return d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}
+
+/* ============ geometry ============ */
+let ORG={lat:0,lon:0};
+const toXY=(lat,lon)=>({x:(lon-ORG.lon)*Math.cos(ORG.lat*D2R)*111320,y:-(lat-ORG.lat)*110540});
+const toLL=(x,y)=>({lat:ORG.lat-y/110540,lon:ORG.lon+x/(111320*Math.cos(ORG.lat*D2R))});
+function hav(a,b){const R=6371000,p1=a.lat*D2R,p2=b.lat*D2R,dp=p2-p1,dl=(b.lon-a.lon)*D2R;const h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+function bearingLL(a,b){const p1=a.lat*D2R,p2=b.lat*D2R,dl=(b.lon-a.lon)*D2R;return((Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))*R2D)+360)%360}
+const bearXY=(a,b)=>((Math.atan2(b.x-a.x,-(b.y-a.y))*R2D)+360)%360;
+const distXY=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function ringArea(r){let a=0;for(let i=0,n=r.length;i<n;i++){const p=r[i],q=r[(i+1)%n];a+=p.x*q.y-q.x*p.y}return a/2}
+function pip(pt,ring){let c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a.y>pt.y)!==(b.y>pt.y)&&pt.x<(b.x-a.x)*(pt.y-a.y)/(b.y-a.y)+a.x)c=!c}return c}
+function resample(ring,sp){const n=ring.length,pts=[];let carry=0;for(let i=0;i<n;i++){const a=ring[i],b=ring[(i+1)%n],L=distXY(a,b);if(L===0)continue;let d=carry;while(d<L){const t=d/L;pts.push({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});d+=sp}carry=d-L}return pts}
+function decimate(ring,max){if(ring.length<=max)return ring;const st=ring.length/max,o=[];for(let i=0;i<max;i++)o.push(ring[Math.floor(i*st)]);return o}
+
+/* ============ sun ============ */
+function sunEvent(date,lat,lon,rise){
+  const y=date.getFullYear(),m=date.getMonth(),d=date.getDate();
+  const N=Math.floor((Date.UTC(y,m,d)-Date.UTC(y,0,0))/864e5),r=Math.PI/180,lngH=lon/15,t=N+((rise?6:18)-lngH)/24;
+  const M=0.9856*t-3.289;let L=M+1.916*Math.sin(M*r)+0.02*Math.sin(2*M*r)+282.634;L=(L%360+360)%360;
+  let RA=Math.atan(0.91764*Math.tan(L*r))/r;RA=(RA%360+360)%360;RA+=Math.floor(L/90)*90-Math.floor(RA/90)*90;RA/=15;
+  const sinD=0.39782*Math.sin(L*r),cosD=Math.cos(Math.asin(sinD));
+  const cosH=(Math.cos(90.833*r)-sinD*Math.sin(lat*r))/(cosD*Math.cos(lat*r));if(cosH>1||cosH<-1)return null;
+  let H=rise?360-Math.acos(cosH)/r:Math.acos(cosH)/r;H/=15;
+  const T=H+RA-0.06571*t-6.622;let UT=((T-lngH)%24+24)%24;
+  let ms=Date.UTC(y,m,d)+UT*36e5;const noon=new Date(y,m,d,12).getTime();
+  while(ms-noon>12*36e5)ms-=864e5;while(noon-ms>12*36e5)ms+=864e5;return new Date(ms)}
+const sunCache={};
+function sunFor(date){const k=date.toDateString()+ORG.lat.toFixed(1);if(!sunCache[k]){const rise=sunEvent(date,ORG.lat,ORG.lon,true),set=sunEvent(date,ORG.lat,ORG.lon,false);
+  sunCache[k]={rise:rise||new Date(date.getFullYear(),date.getMonth(),date.getDate(),6,30),set:set||new Date(date.getFullYear(),date.getMonth(),date.getDate(),19,30)}}return sunCache[k]}
+function timeClass(d){const s=sunFor(d),t=d.getTime(),r=s.rise.getTime(),e=s.set.getTime(),m=6e4,len=e-r;
+  if(t>=r-45*m&&t<r+60*m)return"dawn";if(t>=r+60*m&&t<r+len*.42)return"morning";if(t>=r+len*.42&&t<r+len*.62)return"midday";
+  if(t>=r+len*.62&&t<e-75*m)return"afternoon";if(t>=e-75*m&&t<e+45*m)return"dusk";return"night"}
+
+/* ============ fishing knowledge ============ */
+const TYPE_LABEL={point:"Point",cove:"Cove",narrows:"Narrows",dam:"Dam",dock:"Pier or dock",ramp:"Boat ramp",spot:"Marked fishing spot",bank:"Nearest bank"};
+const TYPES={point:"Land sticking out into the lake. Fish travel and ambush bait along points, and the bottom often drops off quickly nearby.",
+ cove:"A sheltered bay. Shallow water that warms first and often holds weeds, wood and baitfish.",
+ narrows:"A pinch point where fish and bait funnel through.",
+ dam:"Usually the deepest water on a reservoir, with rock along the face. Fish hold on the rock and the drop-off.",
+ dock:"Pilings and shade hold bait and panfish.",
+ ramp:"Hard bottom and bait traffic. Can be busy.",
+ spot:"Mapped as a fishing spot by OpenStreetMap contributors.",
+ bank:"The closest shoreline to you. Low effort, so a good place to start."};
+const DEPTH_EST={point:[4,22],cove:[1,7],narrows:[6,24],dam:[12,40],dock:[3,12],ramp:[1,6],spot:[3,12],bank:[1,6]};
+const SPECIES={
+ bass:{name:"Largemouth bass",short:"Bass",w:{d:.28,s:.22,t:.14,w:.12,l:.12,p:.12},st:{point:.9,cove:.75,narrows:.7,dam:.8,dock:.85,ramp:.5,spot:.65,bank:.45},
+  phase:t=>t<50?["Cold-water holding",14,26,.35]:t<60?["Pre-spawn staging",5,14,.7]:t<72?["Active feeding",3,12,1]:t<82?["Summer pattern",8,18,.85]:["Hot-water slowdown",12,22,.6]},
+ bluegill:{name:"Bluegill",short:"Bluegill",w:{d:.30,s:.28,t:.14,w:.06,l:.08,p:.14},st:{point:.5,cove:.85,narrows:.35,dam:.3,dock:1,ramp:.6,spot:.7,bank:.5},
+  phase:t=>t<50?["Winter holding",12,20,.3]:t<62?["Cool-water feeding",6,12,.6]:t<78?["Active shallow",2,9,1]:["Summer shade",4,12,.85]},
+ crappie:{name:"Crappie",short:"Crappie",w:{d:.28,s:.24,t:.14,w:.08,l:.10,p:.16},st:{point:.55,cove:.6,narrows:.85,dam:.6,dock:.9,ramp:.5,spot:.65,bank:.4},
+  phase:t=>t<50?["Deep winter",15,25,.4]:t<62?["Spring staging",6,12,.85]:t<74?["Active",5,14,1]:["Summer suspended",10,20,.8]},
+ catfish:{name:"Channel catfish",short:"Catfish",w:{d:.26,s:.26,t:.14,w:.04,l:.18,p:.12},st:{point:.6,cove:.4,narrows:.8,dam:.75,dock:.35,ramp:.5,spot:.6,bank:.45},
+  phase:t=>t<55?["Sluggish",15,28,.3]:t<70?["Warming up",8,20,.7]:t<86?["Prime feeding",6,22,1]:["Hot-water slowdown",12,25,.75]}};
+function phaseOf(sp,t){const p=SPECIES[sp].phase(t).slice();if(S.fall&&/Pre-spawn|Spring staging/.test(p[0]))p[0]="Fall feeding";return p}
+const isLow=c=>c.time==="dawn"||c.time==="dusk"||c.time==="night"||c.sky==="overcast";
+function lightVal(sp,c){const low=isLow(c);if(sp==="catfish")return(c.time==="night"||c.time==="dusk"||c.time==="dawn")?1:c.sky==="overcast"?.7:.35;if(sp==="bass")return low?1:.4;return low?.75:.55}
+const pressVal=c=>c.press==="falling"?1:c.press==="steady"?.6:.35;
+const markOf=v=>v>=.65?"plus":v<=.4?"minus":"mid";
+function evaluate(spKey,z,c){
+  const sp=SPECIES[spKey],ph=phaseOf(spKey,c.water),[pn,dmin,dmax,act]=ph,[lo,hi]=DEPTH_EST[z.type],f=[];
+  const ov=Math.max(0,Math.min(hi,dmax)-Math.max(lo,dmin));let D;
+  if(ov>0)D=.5+.5*clamp01(ov/Math.max(1,Math.min(hi-lo,dmax-dmin)));else{const gap=lo>dmax?lo-dmax:dmin-hi;D=.5*clamp01(1-gap/8)}
+  f.push({k:"d",v:D,t:"Depth isn't measured here. "+TYPE_LABEL[z.type]+"s like this often run about "+lo+"–"+hi+" ft; "+sp.short.toLowerCase()+" favor "+dmin+"–"+dmax+" ft right now."});
+  f.push({k:"s",v:sp.st[z.type],t:TYPES[z.type]});
+  f.push({k:"t",v:act,t:"Water near "+c.water+"°F (estimate): "+pn.toLowerCase()+"."});
+  const blow=(DIRS[c.dir]+180)%360,e=Math.cos(angDiff(blow,z.bearing)*D2R);let W,wt;
+  if(c.wind<3){W=.5;wt="Calm. Wind isn't a factor."}else{W=.5+.5*e*Math.min(1,c.wind/12);wt=e>.3?c.wind+" mph from the "+c.dir+" pushes water and bait toward this side.":e<-.3?"This side is sheltered from the "+c.dir+" wind.":"The "+c.dir+" wind runs across this spot."}
+  f.push({k:"w",v:W,t:wt});
+  const Lv=lightVal(spKey,c),low=isLow(c);let lt;
+  if(spKey==="catfish")lt=Lv>=.65?"Low light and night are prime time for catfish.":"Bright daytime is the slower time for catfish.";
+  else if(spKey==="bass")lt=low?"Low light ("+(c.sky==="overcast"?"overcast":TIMES[c.time].toLowerCase())+") keeps bass willing to roam.":"Bright sun makes bass hold tight to cover or deeper water.";
+  else lt=low?"Soft light helps fish stay up and feed.":"Bright sun pushes fish toward shade and cover.";
+  f.push({k:"l",v:Lv,t:lt});
+  f.push({k:"p",v:pressVal(c),t:c.press==="falling"?"Falling pressure often triggers feeding.":c.press==="steady"?"Steady pressure means a normal bite.":"Rising pressure after a front often slows the bite."});
+  let score=0,sw=0;f.forEach(x=>{const w=sp.w[x.k]*(x.k==="d"?.5:1);score+=w*x.v;sw+=w});score/=sw;
+  const signal=score>=.82?"Strong":score>=.66?"Mixed":"Limited";const watch=[];
+  if(signal==="Limited")watch.push("Few factors line up here today.");
+  if(c.wind>=15)watch.push("Strong wind. Be careful on the water and fish the sheltered side.");
+  if(c.time==="night")watch.push("Night fishing. Bring a headlamp and tell someone where you'll be.");
+  watch.push("Check land access and local rules before you go.");
+  return{z,score,signal,f,phase:pn,depth:[Math.max(lo,dmin)<=Math.min(hi,dmax)?Math.max(lo,dmin):lo,Math.max(lo,dmin)<=Math.min(hi,dmax)?Math.min(hi,dmax):hi],watch}}
+const ICO={crank:'<path d="M12 20C18 11 40 11 48 20C40 29 18 29 12 20Z"/><path d="M12 20L5 14M30 27v7M42 26l4 6"/><circle cx="40" cy="18" r="1.5"/>',
+ jig:'<circle cx="16" cy="22" r="6"/><path d="M10 17C8 8 20 6 22 12M22 22h24M22 18l22-4M22 26l22 4M46 14v16"/>',
+ spin:'<path d="M6 20h22"/><path d="M30 13c9 0 15 4 15 7s-6 7-15 7c4-3 4-11 0-14z"/><path d="M46 20l12-6M46 20h13M46 20l12 6"/>',
+ soft:'<path d="M6 30C14 8 26 38 36 18c4-8 14-8 22-12"/><path d="M58 6l-3 8M58 6l-9 3"/>',
+ top:'<path d="M10 22c6-9 26-9 34 0c-8 6-26 6-34 0z"/><path d="M48 14v16M44 22h8"/><path d="M26 28v6M36 27l3 5"/>',
+ jerk:'<path d="M6 20C16 13 40 13 52 20C40 27 16 27 6 20Z"/><path d="M52 20l7-4M24 28v6M38 27l2 6"/><circle cx="14" cy="19" r="1.4"/>',
+ bait:'<path d="M8 20c6-10 14-10 22-4s16 4 22-4"/><path d="M46 24v8a4 4 0 0 1-8 0"/>',
+ float:'<circle cx="32" cy="12" r="7"/><path d="M32 19v13a5 5 0 1 0 5-5"/>',
+ tube:'<path d="M8 15h30v10h-30z"/><path d="M38 17l16-5M38 20h18M38 23l16 5"/>'};
+function lureList(spKey,c,depth){
+  const cl=c.clarity,low=isLow(c),t=c.water,band=t<55?0:t<68?1:t<80?2:3,col=(a,b,m)=>cl==="clear"?a:cl==="stained"?b:m,dt=depth[0]+"–"+depth[1]+" ft";
+  if(spKey==="bass"){const B={
+   jig:{n:"Jig with craw trailer",i:"jig",d:col("Green pumpkin","Black and blue","Black and blue")+", 3/8 oz. Hop it along the bottom with long pauses around "+dt+"."},
+   jerk:{n:"Suspending jerkbait",i:"jerk",d:col("Ghost minnow","Chartreuse shad","White")+", 4 in. Pull, then pause 5 to 10 seconds."},
+   crank:{n:"Medium-diving crankbait",i:"crank",d:col("Natural shad","Chartreuse and white","Chartreuse and black")+", 2.5 in. Steady retrieve, bump it off cover around "+dt+"."},
+   spin:{n:"Spinnerbait",i:"spin",d:col("White","White and chartreuse","Chartreuse and black")+", 3/8 oz. Slow roll along the edge."},
+   tex:{n:"Texas-rigged soft plastic",i:"soft",d:col("Green pumpkin","Watermelon red","Black and blue")+", 4 to 6 in. Drag and hop it around "+dt+", pause at cover."},
+   top:{n:"Walking topwater",i:"top",d:col("Bone","Chartreuse shad","Black")+", 4 in. Walk it with pauses over the shallow edge."},
+   drop:{n:"Drop-shot rig",i:"soft",d:col("Natural minnow","Watermelon","Black")+", 4 in. Hold it in place and shake lightly around "+dt+"."}};
+   const o=band===0?["jig","jerk","drop","tex"]:band===1?["crank","spin","jig","tex"]:band===2?(low?["tex","top","spin","crank"]:["tex","spin","crank","drop"]):["tex","drop","jig",low?"top":"spin"];return o.map(k=>B[k])}
+  if(spKey==="bluegill")return[{n:"Small jig under a float",i:"float",d:col("White","Chartreuse","Black and chartreuse")+", 1/64 to 1/32 oz. Set the float to about "+dt+"."},{n:"Worm piece on a bare hook",i:"bait",d:"Small hook, light line. Drop it beside the dock or weed edge."},{n:"Tiny inline spinner",i:"spin",d:col("Silver","Chartreuse","Gold")+", 1/32 oz. Slow, steady retrieve past cover."}];
+  if(spKey==="crappie")return[{n:"Tube or marabou jig",i:"tube",d:col("White pearl","Chartreuse","Black and chartreuse")+", 1/16 oz. Hang it under a float and lift slowly around "+dt+"."},{n:"Live minnow under a float",i:"float",d:"Small crappie minnow. Set the float so the bait sits near "+dt+"."},{n:"Small spinner",i:"spin",d:col("Silver","Chartreuse","Black")+", 1/16 oz. Slow retrieve along brush or a channel edge."}];
+  return[{n:"Cut bait on a slip-sinker rig",i:"bait",d:"Fresh shad or bluegill chunk. Cast, let it sit near the bottom around "+dt+", and check every 10 minutes."+(band===0?" Fish slowly in cold water.":"")},{n:"Prepared stink bait",i:"bait",d:"On a treble hook or sponge. Same rig with more scent, good in "+(cl==="muddy"?"muddy":"any")+" water."},{n:"Nightcrawler on a hook",i:"bait",d:"Threaded on a plain hook with a small weight. Works in current near channels."}]}
+
+/* ============ state ============ */
+const S={species:"bass",maxDist:0,clarity:"stained",waterAdj:0,lakes:[],lake:null,access:[],zones:[],wx:null,loc:null,user:null,demo:false,offline:false,fall:false,manual:{air:62,wind:6,dir:"SW",sky:"partly",press:"steady"},logs:[],plans:[],fb:"",saved:null,tab:"welcome",sel:null,ranked:[]};
+function loadSaved(){try{const j=JSON.parse(localStorage.getItem(KEY));if(j){["species","clarity","waterAdj","logs","plans","fb","manual","maxDist"].forEach(k=>{if(j[k]!=null)S[k]=j[k]});S.saved=j.session||null}}catch(e){}}
+function persist(session){try{const o={species:S.species,clarity:S.clarity,waterAdj:S.waterAdj,logs:S.logs,plans:S.plans,fb:S.fb,manual:S.manual,maxDist:S.maxDist};if(session!==undefined)S.saved=session;o.session=S.saved;localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}}
+loadSaved();
+
+/* ============ data: Overpass / NWS / Nominatim ============ */
+async function fetchJSON(url,opt,ms){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),ms||20000);try{const r=await fetch(url,Object.assign({signal:ctl.signal},opt||{}));if(!r.ok)throw new Error("HTTP "+r.status);return await r.json()}finally{clearTimeout(t)}}
+const OVP=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+async function overpass(q){let err;for(const e of OVP){try{return await fetchJSON(e,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)},24000)}catch(x){err=x}}throw err||new Error("Overpass unavailable")}
+const R_M=6500;
+const qWater=(la,lo)=>`[out:json][timeout:25];(way["natural"="water"](around:${R_M},${la},${lo});relation["natural"="water"](around:${R_M},${la},${lo});way["landuse"="reservoir"](around:${R_M},${la},${lo}););out geom tags;`;
+const qAccess=(la,lo)=>`[out:json][timeout:25];(nwr["leisure"~"^(fishing|slipway)$"](around:${R_M},${la},${lo});nwr["man_made"="pier"](around:${R_M},${la},${lo});nwr["waterway"="dam"](around:${R_M},${la},${lo}););out center tags;`;
+function stitch(ways){const key=p=>p.lat.toFixed(6)+","+p.lon.toFixed(6),rings=[],pool=ways.map(w=>w.slice());
+  while(pool.length){let cur=pool.pop(),g=0;
+    while(key(cur[0])!==key(cur[cur.length-1])&&g++<6000){const end=key(cur[cur.length-1]),st=key(cur[0]);let f=-1,rev=false,pre=false;
+      for(let i=0;i<pool.length;i++){const w=pool[i],ws=key(w[0]),we=key(w[w.length-1]);if(ws===end){f=i;break}if(we===end){f=i;rev=true;break}}
+      if(f<0)for(let i=0;i<pool.length;i++){const w=pool[i],ws=key(w[0]),we=key(w[w.length-1]);if(we===st){f=i;pre=true;break}if(ws===st){f=i;pre=true;rev=true;break}}
+      if(f<0)break;let w=pool.splice(f,1)[0];if(rev)w=w.slice().reverse();cur=pre?w.concat(cur.slice(1)):cur.concat(w.slice(1))}
+    if(cur.length>3&&key(cur[0])===key(cur[cur.length-1]))rings.push(cur)}
+  return rings}
+function parseWater(json){
+  const out=[],seen=new Set();
+  for(const el of json.elements||[]){const id=el.type+el.id;if(seen.has(id))continue;seen.add(id);const tags=el.tags||{};
+    if(tags.water==="river"||tags.water==="stream"||tags.water==="canal"||tags.water==="ditch"||tags.water==="drain")continue;
+    let outers=[],inners=[];
+    if(el.type==="way"&&el.geometry&&el.geometry.length>3){const g=el.geometry;if(g[0].lat===g[g.length-1].lat&&g[0].lon===g[g.length-1].lon)outers=[g]}
+    else if(el.type==="relation"&&el.members){const o=[],i=[];el.members.forEach(m=>{if(m.type==="way"&&m.geometry&&m.geometry.length>1)(m.role==="inner"?i:o).push(m.geometry)});outers=stitch(o);inners=stitch(i)}
+    if(!outers.length)continue;
+    const O=outers.map(r=>r.map(p=>toXY(p.lat,p.lon))),I=inners.map(r=>r.map(p=>toXY(p.lat,p.lon)));
+    let mi=0,ma=0;O.forEach((r,k)=>{const a=Math.abs(ringArea(r));if(a>ma){ma=a;mi=k}});
+    let area=ma;I.forEach(r=>{const c=r[0];if(pip(c,O[mi]))area-=Math.abs(ringArea(r))});
+    if(area<3000)continue;
+    const main=O[mi];let md=1e9,inside=pip({x:0,y:0},main)&&!I.some(r=>pip({x:0,y:0},r));
+    const dense=resample(main,Math.max(15,Math.min(60,Math.sqrt(ma)/20)));(dense.length?dense:main).forEach(p=>{const d=Math.hypot(p.x,p.y);if(d<md)md=d});
+    if(inside)md=0;
+    const c={x:0,y:0};main.forEach(p=>{c.x+=p.x;c.y+=p.y});c.x/=main.length;c.y/=main.length;
+    let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;main.forEach(p=>{minx=Math.min(minx,p.x);maxx=Math.max(maxx,p.x);miny=Math.min(miny,p.y);maxy=Math.max(maxy,p.y)});
+    out.push({id,name:tags.name||"",area,dist:md,inside,main,outers:O,inners:I,center:c,bbox:[minx,miny,maxx,maxy],kind:tags.water||(tags.landuse==="reservoir"?"reservoir":"")})}
+  return out}
+function parseAccess(json){const out=[];for(const el of json.elements||[]){const t=el.tags||{};const ll=el.type==="node"?{lat:el.lat,lon:el.lon}:el.center?{lat:el.center.lat,lon:el.center.lon}:null;if(!ll)continue;
+    const type=t.waterway==="dam"?"dam":t.man_made==="pier"?"dock":t.leisure==="slipway"?"ramp":t.leisure==="fishing"?"spot":null;if(!type)continue;
+    const xy=toXY(ll.lat,ll.lon);out.push({type,name:t.name||"",x:xy.x,y:xy.y})}return out}
+
+/* weather */
+function parseWind(s){const m=String(s||"").match(/\d+/g);return m?Math.max(...m.map(Number)):0}
+function skyOf(t){t=String(t||"").toLowerCase();if(/cloudy|overcast|fog|rain|shower|storm|drizzle|snow/.test(t)&&!/partly|mostly sunny|mostly clear/.test(t))return"overcast";if(/partly|mostly sunny|mostly clear|few clouds/.test(t))return"partly";return"clear"}
+async function getWeather(lat,lon){
+  const pt=await fetchJSON(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,{headers:{Accept:"application/geo+json"}},15000);
+  const P=pt.properties,place=P.relativeLocation&&P.relativeLocation.properties?P.relativeLocation.properties.city+", "+P.relativeLocation.properties.state:"";
+  const hr=await fetchJSON(P.forecastHourly,{headers:{Accept:"application/geo+json"}},15000);
+  const hours=(hr.properties.periods||[]).slice(0,30).map(p=>({t:new Date(p.startTime),air:p.temperatureUnit==="C"?Math.round(p.temperature*9/5+32):p.temperature,wind:parseWind(p.windSpeed),dir:p.windDirection||"N",sky:skyOf(p.shortForecast),short:p.shortForecast||"",pop:p.probabilityOfPrecipitation&&p.probabilityOfPrecipitation.value||0}));
+  let obs=null,pTrend="steady",pNow=null;
+  try{const st=await fetchJSON(P.observationStations,{headers:{Accept:"application/geo+json"}},12000);
+    for(const f of(st.features||[]).slice(0,3)){try{const o=await fetchJSON(f.id+"/observations?limit=14",{headers:{Accept:"application/geo+json"}},12000);const L=(o.features||[]).map(x=>x.properties);
+      const pr=L.filter(x=>x.barometricPressure&&x.barometricPressure.value!=null);
+      if(pr.length>=2){const a=pr[0],b=pr[pr.length-1],dh=(new Date(a.timestamp)-new Date(b.timestamp))/36e5,dp=(a.barometricPressure.value-b.barometricPressure.value)/100;
+        pNow=a.barometricPressure.value/100;if(dh>=2){const rate=dp/dh*3;pTrend=rate<=-1?"falling":rate>=1?"rising":"steady"}}
+      const t0=L.find(x=>x.temperature&&x.temperature.value!=null);if(t0)obs={air:Math.round(t0.temperature.value*9/5+32),desc:t0.textDescription||"",station:f.properties&&f.properties.stationIdentifier||""};break}catch(e){}}}catch(e){}
+  return{ok:true,source:"National Weather Service",place,hours,obs,press:pTrend,pressHpa:pNow,fetched:Date.now()}}
+function manualWx(){return{ok:false,source:"Manual",place:"",hours:[],obs:null,press:S.manual.press}}
+function waterEst(){const now=new Date(),mo=now.getMonth(),lat=Math.abs(ORG.lat||40);
+  const N=[36,36,42,52,62,72,77,77,71,61,50,40];let norm=N[mo]+(40-lat)*0.8;if(ORG.lat<0)norm=N[(mo+6)%12]+(40-lat)*.8;
+  let air=S.wx&&S.wx.hours.length?S.wx.hours.slice(0,24).reduce((a,h)=>a+h.air,0)/Math.min(24,S.wx.hours.length):S.manual.air;
+  if(S.wx&&S.wx.obs)air=(air+S.wx.obs.air)/2;
+  return Math.round(clamp(air*.6+norm*.4,33,88))}
+function condAt(i){
+  let h,base;
+  if(S.wx&&S.wx.hours.length){h=S.wx.hours[Math.min(i,S.wx.hours.length-1)];base={air:h.air,wind:h.wind,dir:h.dir,sky:h.sky,t:h.t,short:h.short,pop:h.pop}}
+  else{const t=new Date(Date.now()+i*36e5);base={air:S.manual.air,wind:S.manual.wind,dir:S.manual.dir,sky:S.manual.sky,t,short:"",pop:0}}
+  return{air:base.air,wind:base.wind,dir:base.dir,sky:base.sky,press:(S.wx&&S.wx.ok?S.wx.press:S.manual.press),water:clamp(waterEst()+S.waterAdj,33,92),clarity:S.clarity,time:timeClass(base.t),t:base.t,short:base.short,pop:base.pop}}
+
+/* ============ zones from shoreline ============ */
+function buildZones(lake,access){
+  const zones=[],ring=lake.main;let per=0;for(let i=0;i<ring.length;i++)per+=distXY(ring[i],ring[(i+1)%ring.length]);
+  const sp=clamp(per/700,12,45),pts=resample(ring,sp),n=pts.length;
+  const cen=lake.center,mk=(type,p,extra)=>{const ll=toLL(p.x,p.y);return Object.assign({type,x:p.x,y:p.y,lat:ll.lat,lon:ll.lon,bearing:bearXY(cen,p),name:"",id:""},extra||{})};
+  if(n>=12){
+    const W=clamp(per/25,70,300),k=Math.max(2,Math.round(W/sp)),sgn=Math.sign(ringArea(ring))||1,ang=new Array(n);
+    for(let i=0;i<n;i++){const a=pts[(i-k+n)%n],b=pts[i],c=pts[(i+k)%n],v1={x:b.x-a.x,y:b.y-a.y},v2={x:c.x-b.x,y:c.y-b.y};ang[i]=Math.atan2(v1.x*v2.y-v1.y*v2.x,v1.x*v2.x+v1.y*v2.y)*sgn}
+    const thr=.32,pick=(sign)=>{const c=[];for(let i=0;i<n;i++){const v=ang[i]*sign;if(v<thr)continue;let max=true;for(let d=-2*k;d<=2*k;d++){if(d&&ang[(i+d+n)%n]*sign>v){max=false;break}}if(max)c.push({i,v})}c.sort((a,b)=>b.v-a.v);return c};
+    const far=(p)=>zones.every(z=>distXY(z,p)>Math.max(90,W*1.2));
+    pick(-1).slice(0,8).forEach(c=>{if(zones.filter(z=>z.type==="point").length<3&&far(pts[c.i]))zones.push(mk("point",pts[c.i],{score:c.v}))});
+    pick(1).slice(0,8).forEach(c=>{if(zones.filter(z=>z.type==="cove").length<3&&far(pts[c.i]))zones.push(mk("cove",pts[c.i],{score:c.v}))});
+    if(per>1400){const m=Math.min(n,360),st=n/m,ss=[];for(let i=0;i<m;i++)ss.push(pts[Math.floor(i*st)]);const wd=new Array(m).fill(1e9);
+      for(let i=0;i<m;i++)for(let j=0;j<m;j++){const cd=Math.min(Math.abs(i-j),m-Math.abs(i-j));if(cd>m*.18){const d=distXY(ss[i],ss[j]);if(d<wd[i])wd[i]=d}}
+      const mx=Math.max(...wd.filter(v=>v<1e9));let bi=-1,bv=1e9;for(let i=0;i<m;i++){const l=wd[(i-3+m)%m]>=wd[i]&&wd[(i+3)%m]>=wd[i];if(l&&wd[i]<bv){bv=wd[i];bi=i}}
+      if(bi>=0&&bv<mx*.4&&far(ss[bi]))zones.push(mk("narrows",ss[bi]))}}
+  // access features near this lake
+  const near=(p)=>{let d=1e9;for(let i=0;i<pts.length;i+=Math.max(1,Math.floor(pts.length/400)))d=Math.min(d,distXY(pts[i],p));return d};
+  access.forEach(a=>{if(zones.filter(z=>z.access).length>=4)return;if(near(a)<120||pip(a,ring)){
+    let q=a;if(a.type!=="dam"){let bd=1e9;pts.forEach(p=>{const d=distXY(p,a);if(d<bd){bd=d;q=p}})}
+    if(zones.some(z=>distXY(z,q)<50))return;zones.push(mk(a.type,q,{access:true,label:a.name}))}});
+  // nearest bank to user
+  let bq=null,bd=1e9;pts.forEach(p=>{const d=Math.hypot(p.x,p.y);if(d<bd){bd=d;bq=p}});
+  if(bq&&!zones.some(z=>distXY(z,bq)<60))zones.push(mk("bank",bq,{userNearest:true}));
+  if(zones.length<3){for(let k=0;k<4&&n>0;k++){const p=pts[Math.floor((k+.5)*n/4)];if(zones.every(z=>distXY(z,p)>60))zones.push(mk("bank",p))}}
+  // names
+  const cnt={};zones.forEach(z=>{const oct=["North","Northeast","East","Southeast","South","Southwest","West","Northwest"][Math.round(z.bearing/45)%8];
+    let nm=z.label||(z.type==="bank"&&z.userNearest?"Nearest bank":oct+" "+({point:"point",cove:"cove",narrows:"narrows",dam:"dam",dock:"pier",ramp:"boat ramp",spot:"fishing spot",bank:"bank"}[z.type]));
+    cnt[nm]=(cnt[nm]||0)+1;if(cnt[nm]>1)nm+=" "+cnt[nm];z.name=nm;z.id=z.type+"-"+Math.round(z.x)+"-"+Math.round(z.y)});
+  return zones}
+
+/* ============ loading flow ============ */
+function setSteps(items){const ul=$("#steps");ul.hidden=false;ul.innerHTML=items.map(i=>`<li class="${i.s||""}" id="st-${i.id}"><span class="dot"></span><span>${esc(i.t)}</span></li>`).join("")}
+function stepSet(id,s,t){const li=$("#st-"+id);if(!li)return;li.className=s;if(t)li.lastChild.textContent=t}
+function getPos(){return new Promise((res,rej)=>{if(!navigator.geolocation)return rej(new Error("This browser can't share location."));navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy}),e=>rej(new Error(e.code===1?"Location permission was denied. Search for a place instead, or allow location for this site in your browser settings.":"Couldn't get a location fix. Try again outside, or search for a place.")),{enableHighAccuracy:true,timeout:15000,maximumAge:30000})})}
+async function geocode(q){const j=await fetchJSON("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q="+encodeURIComponent(q),{headers:{Accept:"application/json"}},12000);return j.map(r=>({name:r.display_name,lat:+r.lat,lon:+r.lon}))}
+function showErr(m){const e=$("#loadErr");e.hidden=!m;e.textContent=m||""}
+let startBusy=false;
+async function start(mode,loc){
+  if(startBusy)return;startBusy=true;showErr("");S.demo=mode==="demo";S.offline=false;
+  try{
+    setSteps([{id:"loc",t:"Finding your location",s:"run"},{id:"lake",t:"Finding lakes nearby"},{id:"wx",t:"Getting today's weather"},{id:"zone",t:"Reading the shoreline"}]);
+    if(mode==="gps"){loc=await getPos()}
+    else if(mode==="demo"){loc={lat:39.9612,lon:-82.9988,acc:0}}
+    stepSet("loc","ok","Location found");S.loc=loc;ORG={lat:loc.lat,lon:loc.lon};S.user={lat:loc.lat,lon:loc.lon,acc:loc.acc||0};
+    S.fall=(()=>{const m=new Date().getMonth();return ORG.lat>=0?(m>=8&&m<=10):(m>=2&&m<=4)})();
+    stepSet("lake","run");stepSet("wx","run");
+    const wxP=(mode==="demo"?Promise.resolve(demoWx()):getWeather(loc.lat,loc.lon)).then(w=>{stepSet("wx","ok","Weather: "+(w.place||"loaded"));return w}).catch(e=>{stepSet("wx","err","Weather unavailable. Using manual conditions.");return null});
+    let wj,aj;
+    try{[wj,aj]=await Promise.all([mode==="demo"?Promise.resolve(demoWater()):overpass(qWater(loc.lat,loc.lon)),mode==="demo"?Promise.resolve({elements:[]}):overpass(qAccess(loc.lat,loc.lon)).catch(()=>({elements:[]}))])}
+    catch(e){stepSet("lake","err","Couldn't reach the lake map service");S.wx=await wxP;throw new Error("The lake map service didn't respond. Check your signal and try again."+(S.saved?" Or use your last saved lakes below.":""))}
+    let lakes=parseWater(wj);S.access=parseAccess(aj);
+    if(!lakes.length){stepSet("lake","err","No mapped lakes within 4 miles");S.wx=await wxP;throw new Error("No mapped lakes or ponds within about 4 miles. Try searching for the lake by name, or move closer to the water.")}
+    lakes.sort((a,b)=>(a.inside?0:1)-(b.inside?0:1)||a.dist-b.dist);
+    stepSet("lake","ok",lakes.length+" water bod"+(lakes.length>1?"ies":"y")+" found");
+    S.wx=await wxP;if(!S.wx)S.wx=manualWx();
+    S.lakes=lakes;
+    const named=lakes.filter(l=>l.dist<1500&&l.area>20000).sort((a,b)=>a.dist-b.dist)[0];
+    selectLake((lakes[0].inside?lakes[0]:named||lakes[0]).id,true);
+    stepSet("zone","ok",S.zones.length+" fishing spots found");
+    saveSession();enterApp()
+  }catch(e){showErr(e.message||String(e));if(S.saved)showResume()}
+  finally{startBusy=false}}
+function selectLake(id,quiet){const l=S.lakes.find(x=>x.id===id)||S.lakes[0];S.lake=l;S.zones=buildZones(l,S.access);S.sel=null;M.fitted=false;if(!quiet){renderAll();mapFit()}}
+function saveSession(){try{const lk=S.lakes.slice(0,12).map(l=>({id:l.id,name:l.name,area:l.area,dist:l.dist,inside:l.inside,kind:l.kind,main:decimate(l.main,l===S.lake?700:220),outers:l.outers.map((r,i)=>decimate(r,i&&l!==S.lake?120:l===S.lake?700:220)),inners:l.inners.slice(0,6).map(r=>decimate(r,80)),center:l.center,bbox:l.bbox}));
+  persist({t:Date.now(),loc:S.loc,lakes:lk,access:S.access.slice(0,40),wx:S.wx&&S.wx.ok?Object.assign({},S.wx,{hours:S.wx.hours.slice(0,30)}):null,lakeId:S.lake&&S.lake.id,demo:S.demo})}catch(e){}}
+function useSaved(){const s=S.saved;if(!s)return;ORG={lat:s.loc.lat,lon:s.loc.lon};S.loc=s.loc;S.user={lat:s.loc.lat,lon:s.loc.lon,acc:0};S.demo=!!s.demo;S.offline=true;S.lakes=s.lakes;S.access=s.access||[];
+  S.wx=s.wx?Object.assign({},s.wx,{hours:s.wx.hours.map(h=>Object.assign({},h,{t:new Date(h.t)}))}):manualWx();
+  const m=new Date().getMonth();S.fall=ORG.lat>=0?(m>=8&&m<=10):(m>=2&&m<=4);
+  // old hours are stale: drop those already past
+  if(S.wx.hours.length){const now=Date.now()-36e5;S.wx.hours=S.wx.hours.filter(h=>h.t.getTime()>=now);if(!S.wx.hours.length)S.wx=manualWx()}
+  selectLake(s.lakeId,true);enterApp();startGpsWatch()}
+function showResume(){const s=S.saved;if(!s)return;const r=$("#resume");r.hidden=false;r.innerHTML=`<b>Last session saved</b><div class="small muted">${new Date(s.t).toLocaleString()} · ${s.lakes.length} lakes</div><button class="btn block" style="margin-top:10px" id="resBtn">Use saved lakes (works offline)</button>`;$("#resBtn").onclick=useSaved}
+function enterApp(){$("#nav").hidden=false;setTab("today");renderAll();startGpsWatch();setTimeout(mapFit,50)}
+function setTab(t){S.tab=t;$$("main>section").forEach(s=>s.classList.toggle("on",s.id===t));$$("#nav button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.t===t)));window.scrollTo(0,0);
+  if(t==="map-tab"){mapResize();if(!M.fitted)mapFit();else renderMap()}if(t!=="cam-tab"&&camOn)camStop();if(t==="log-tab")renderLog()}
+
+/* demo fixtures */
+function demoWater(){const c={lat:39.9612,lon:-82.9988};const pts=[];const N=120;
+  for(let i=0;i<N;i++){const th=i/N*2*Math.PI,r=1+.28*Math.sin(2*th+.6)+.2*Math.sin(3*th+1.9)+.12*Math.sin(5*th+.3);const rm=420*r;
+    pts.push({lat:c.lat+(Math.sin(th)*rm-250)/110540,lon:c.lon+(Math.cos(th)*rm+60)/(111320*Math.cos(c.lat*D2R))})}
+  pts.push(pts[0]);
+  const pond=[];for(let i=0;i<=30;i++){const th=i/30*2*Math.PI;pond.push({lat:c.lat+(Math.sin(th)*90+700)/110540,lon:c.lon+(Math.cos(th)*130-500)/(111320*Math.cos(c.lat*D2R))})}
+  return{elements:[{type:"way",id:1,tags:{natural:"water",name:"Demo Lake"},geometry:pts},{type:"way",id:2,tags:{natural:"water"},geometry:pond}]}}
+function demoWx(){const out=[],now=new Date();now.setMinutes(0,0,0);const dirs=["SW","SW","WSW","W","W","WNW"];
+  for(let i=0;i<30;i++){const t=new Date(now.getTime()+i*36e5),h=t.getHours();out.push({t,air:Math.round(58+10*Math.sin((h-9)/24*2*Math.PI)),wind:6+(i%6),dir:dirs[Math.floor(i/5)%6],sky:i%9<4?"partly":i%9<6?"overcast":"clear",short:i%9<4?"Partly Cloudy":i%9<6?"Mostly Cloudy":"Sunny",pop:5})}
+  return{ok:true,source:"Demo weather",place:"Demo",hours:out,obs:null,press:"falling",fetched:Date.now()}}
+
+/* ============ render: today ============ */
+function eligible(){const u=S.user;return S.zones.filter(z=>!S.maxDist||distToUser(z)<=S.maxDist)}
+function distToUser(z){const u=S.user;if(!u)return 0;const p=toXY(u.lat,u.lon);return Math.hypot(p.x-z.x,p.y-z.y)}
+function bearToUser(z){const p=toXY(S.user.lat,S.user.lon);return bearXY(p,z)}
+function rankNow(c){c=c||condAt(0);let L=eligible();if(!L.length)L=S.zones.slice().sort((a,b)=>distToUser(a)-distToUser(b)).slice(0,3);
+  const r=L.map(z=>evaluate(S.species,z,c));r.sort((a,b)=>b.score-a.score||distToUser(a.z)-distToUser(b.z));return r}
+function activity(sp,c){const v=.55*phaseOf(sp,c.water)[3]+.25*(isLow(c)?1:.5)+.2*pressVal(c);return v}
+function renderAll(){renderChip();renderToday();if(S.tab==="map-tab")renderMap();renderLog()}
+function renderChip(){const c=$("#chip");if(S.demo){c.className="chip demo";c.textContent="Demo data"}else if(S.offline||!navigator.onLine){c.className="chip off";c.textContent="Offline · saved"}else if(S.wx&&S.wx.ok){c.className="chip live";c.textContent="Live data"}else{c.className="chip";c.textContent="Manual weather"}}
+function renderToday(){
+  if(!S.lake)return;
+  $("#lakeBtn").textContent=(S.lake.name||"Unnamed "+(S.lake.area<40000?"pond":"lake"))+" · "+fmtAcres(S.lake.area)+" ▾";
+  const c=condAt(0),alerts=[];
+  const soon=S.wx&&S.wx.hours.slice(0,12);
+  if(soon&&soon.some(h=>/thunder/i.test(h.short)))alerts.push(["bad","Thunderstorms in the forecast in the next 12 hours. Stay off open water and away from the shore if you hear thunder."]);
+  if(c.wind>=20)alerts.push(["bad","Strong winds ("+c.wind+" mph). Dangerous for small boats."]);else if(c.wind>=15)alerts.push(["warn","Breezy ("+c.wind+" mph). Use caution in a boat and fish the sheltered side."]);
+  if(S.offline)alerts.push(["info","You're using saved data"+(S.saved?" from "+new Date(S.saved.t).toLocaleString():"")+". Tap Refresh when you have signal."]);
+  if(S.demo)alerts.push(["warn","Demo lake with sample weather, so you can try everything. Tap Refresh and choose your location to use real data."]);
+  if(S.wx&&!S.wx.ok&&!S.demo)alerts.push(["warn","Live weather isn't available here, so using the conditions you set. Tap Adjust conditions to update them."]);
+  $("#alerts").innerHTML=alerts.map(a=>`<div class="banner ${a[0]}">${esc(a[1])}</div>`).join("");
+  const arrow=S.wx&&S.wx.ok?"":"";
+  $("#strip").innerHTML=`<div><span>Air</span><b>${c.air}°F</b><small>${esc(c.short||c.sky)}</small></div><div><span>Wind</span><b>${c.wind} ${esc(c.dir)}</b><small>mph</small></div><div><span>Pressure</span><b>${c.press==="falling"?"Falling":c.press==="rising"?"Rising":"Steady"}</b><small>${S.wx&&S.wx.ok?"station":"set by you"}</small></div><div><span>Water</span><b>~${Math.round(c.water)}°F</b><small>estimate</small></div>`;
+  $("#wxSrc").textContent=S.wx&&S.wx.ok?(S.wx.source+(S.wx.place?" · "+S.wx.place:"")):"Manual conditions";
+  $("#species").innerHTML=Object.keys(SPECIES).map(k=>`<button data-sp="${k}" aria-pressed="${k===S.species}">${SPECIES[k].short}</button>`).join("");
+  $("#distf").innerHTML=[[0,"Any distance"],[400,"Under 0.25 mi"],[800,"Under 0.5 mi"],[1609,"Under 1 mi"]].map(([v,t])=>`<button data-df="${v}" aria-pressed="${S.maxDist===v}">${t}</button>`).join("");
+  const R=rankNow(c);S.ranked=R;
+  const top=R[0],act=activity(S.species,c),actL=act>=.75?"high":act>=.55?"moderate":"low";
+  const bw=bestWindow();
+  $("#headline").innerHTML=top?`<div class="headline"><small>Today's best bet · ${esc(SPECIES[S.species].short)}</small><b>${esc(top.z.name)}</b><div>${esc(top.signal)} signal · ${esc(top.phase.toLowerCase())} · activity ${actL}.${bw?" Best window: <b>"+esc(bw)+"</b>.":""}</div></div>`:"";
+  $("#spots").innerHTML=R.slice(0,5).map((e,i)=>spotCard(e,i)).join("")||'<div class="card muted">No spots match this filter.</div>';
+  renderBars();
+  const e0=top;$("#lures").innerHTML=e0?lureList(S.species,c,e0.depth).map((x,i)=>`<div class="lure${i===0?" best":""}"><svg viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[x.i]}</svg><div><em${i?' style="color:var(--muted)"':""}>${i===0?"Best pick":"Option "+(i+1)}</em><b>${esc(x.n)}</b><span>${esc(x.d)}</span></div></div>`).join(""):""}
+function spotCard(e,i){const z=e.z,d=distToUser(z),b=bearToUser(z);
+  return `<div class="card spot" data-z="${esc(z.id)}"><div class="hd" data-open="${esc(z.id)}"><div class="rank">${i+1}</div><div><h3>${esc(z.name)}</h3><div class="small muted">${esc(TYPE_LABEL[z.type])} · ${fmtDist(d)} ${dirName(b)}</div></div><span class="sig ${e.signal}">${e.signal}</span></div>
+  <div class="bd" ${i===0?"":"hidden"}><ul class="fac">${e.f.map(x=>`<li><i class="${markOf(x.v)}">${markOf(x.v)==="plus"?"✓":markOf(x.v)==="minus"?"✕":"~"}</i><span>${esc(x.t)}</span></li>`).join("")}</ul>${e.watch.map(w=>`<div class="watch">⚠ ${esc(w)}</div>`).join("")}
+  <div class="row" style="margin-top:10px"><a class="btn sm" href="${dirUrl(z)}" target="_blank" rel="noopener">Directions</a><button class="btn sm" data-plan="${esc(z.id)}">Plan this</button><button class="btn sm" data-log="${esc(z.id)}">Log a catch</button><button class="btn sm" data-showmap="${esc(z.id)}">Show on map</button></div></div></div>`}
+function dirUrl(z){const ios=/iP(hone|ad|od)/.test(navigator.userAgent);return ios?`https://maps.apple.com/?daddr=${z.lat.toFixed(6)},${z.lon.toFixed(6)}&dirflg=w`:`https://www.google.com/maps/dir/?api=1&destination=${z.lat.toFixed(6)},${z.lon.toFixed(6)}&travelmode=walking`}
+function hourScores(){const L=eligible().length?eligible():S.zones,out=[];const n=S.wx&&S.wx.hours.length?Math.min(14,S.wx.hours.length):14;
+  for(let i=0;i<n;i++){const c=condAt(i);let best=0;L.forEach(z=>{const s=evaluate(S.species,z,c).score;if(s>best)best=s});out.push({c,s:best,t:c.t})}return out}
+function bestWindow(){const H=hourScores();if(!H.length)return"";let bi=0,bv=-1;for(let i=0;i<H.length;i++){const v=H[i].s+(H[i+1]?H[i+1].s:H[i].s);if(v>bv){bv=v;bi=i}}const a=H[bi].t,b=new Date((H[Math.min(bi+1,H.length-1)].t).getTime()+36e5);return fmtHour(a)+"–"+fmtHour(b)}
+function renderBars(){const H=hourScores(),mx=Math.max(...H.map(h=>h.s)),mn=Math.min(...H.map(h=>h.s)),sp=Math.max(.001,mx-mn);
+  let bi=0;H.forEach((h,i)=>{if(h.s>H[bi].s)bi=i});
+  $("#bars").innerHTML=H.map((h,i)=>`<div class="bar${i===bi?" best":""}" title="${esc(fmtHour(h.t))}"><i style="height:${26+74*((h.s-mn)/sp)}%"></i><span>${i%2===0?fmtHour(h.t):""}</span></div>`).join("");
+  const s=sunFor(new Date());$("#bwTitle").textContent="Best time for "+SPECIES[S.species].short.toLowerCase();
+  $("#barNote").textContent="Next "+H.length+" hours. Sunrise "+fmtTime(s.rise)+", sunset "+fmtTime(s.set)+". Taller bars mean better odds at the best spot."+(S.wx&&S.wx.ok?"":" Uses the conditions you set, held steady.")}
+
+/* ============ sheets ============ */
+function openSheet(html){$("#sheetBody").innerHTML=html;$("#sheet").hidden=false}
+function closeSheet(){$("#sheet").hidden=true}
+function lakeSheet(){openSheet(`<h3>Choose a lake</h3>`+S.lakes.slice(0,15).map(l=>`<button class="lakeitem" data-lk="${esc(l.id)}" aria-current="${S.lake&&l.id===S.lake.id}"><span><b>${esc(l.name||"Unnamed "+(l.area<40000?"pond":"lake"))}</b><div class="small muted">${fmtAcres(l.area)}</div></span><span class="muted">${l.inside?"you're here":fmtDist(l.dist)}</span></button>`).join("")+`<button class="btn block" style="margin-top:10px" data-close>Close</button>`)}
+function condSheet(){const m=S.manual,c=condAt(0);
+  openSheet(`<h3>Adjust conditions</h3>
+  <label class="f">Water temperature (estimate ~${waterEst()}°F)</label><div class="stepper"><button data-wadj="-1">−</button><b id="wv">${Math.round(c.water)}°F</b><button data-wadj="1">+</button><button class="btn sm" data-wadj="0" style="width:auto;padding:0 10px">Reset</button></div>
+  <label class="f">Water clarity</label><div class="seg" id="clar">${["clear","stained","muddy"].map(k=>`<button data-cl="${k}" aria-pressed="${S.clarity===k}">${k[0].toUpperCase()+k.slice(1)}</button>`).join("")}</div>
+  ${S.wx&&S.wx.ok?"":`<h3 style="margin-top:18px">Today's weather</h3><label class="f">Air temp °F</label><input type="text" inputmode="numeric" id="mAir" value="${m.air}"><label class="f">Wind mph</label><input type="text" inputmode="numeric" id="mWind" value="${m.wind}"><label class="f">Wind from</label><select id="mDir">${DIRN.map(d=>`<option${d===m.dir?" selected":""}>${d}</option>`).join("")}</select><label class="f">Sky</label><select id="mSky">${["clear","partly","overcast"].map(d=>`<option${d===m.sky?" selected":""}>${d}</option>`).join("")}</select><label class="f">Pressure</label><select id="mPress">${["falling","steady","rising"].map(d=>`<option${d===m.press?" selected":""}>${d}</option>`).join("")}</select>`}
+  <div class="row" style="margin-top:14px"><button class="btn pri" data-condok>Done</button></div>`)}
+
+/* ============ map ============ */
+const M={s:1,tx:0,ty:0,w:300,h:300,drag:null,pts:new Map(),pin:[]};
+function mapResize(){const r=$("#map").getBoundingClientRect();M.w=r.width||300;M.h=r.height||300}
+function w2s(p){return{x:p.x*M.s+M.tx,y:p.y*M.s+M.ty}}
+function mapFit(){if(!S.lake)return;M.fitted=true;mapResize();const[b0,b1,b2,b3]=S.lake.bbox,bw=Math.max(60,b2-b0),bh=Math.max(60,b3-b1);M.s=Math.min(M.w/bw,M.h/bh)*.8;const cx=(b0+b2)/2,cy=(b1+b3)/2;M.tx=M.w/2-cx*M.s;M.ty=M.h/2-cy*M.s;renderMap()}
+function mapZoom(f,cx,cy){cx=cx==null?M.w/2:cx;cy=cy==null?M.h/2:cy;const ns=clamp(M.s*f,.02,40),k=ns/M.s;M.tx=cx-(cx-M.tx)*k;M.ty=cy-(cy-M.ty)*k;M.s=ns;renderMap()}
+function pathOf(ring){let d="";for(let i=0;i<ring.length;i++)d+=(i?"L":"M")+ring[i].x.toFixed(1)+" "+ring[i].y.toFixed(1);return d+"Z"}
+function renderMap(){
+  if(!S.lake)return;const svg=$("#map");mapResize();
+  let s=`<rect width="100%" height="100%" fill="#0c1b27"/><g transform="translate(${M.tx.toFixed(1)} ${M.ty.toFixed(1)}) scale(${M.s})">`;
+  S.lakes.forEach(l=>{const sel=l===S.lake||l.id===S.lake.id;
+    l.outers.forEach(r=>{s+=`<path d="${pathOf(r)}" fill="${sel?"#1d6fa8":"#164a6b"}" fill-opacity="${sel?.95:.7}" stroke="${sel?"#6cc8f5":"#2b79a6"}" stroke-width="${sel?2:1}" vector-effect="non-scaling-stroke" fill-rule="evenodd"/>`});
+    l.inners.forEach(r=>{s+=`<path d="${pathOf(r)}" fill="#0c1b27" stroke="#2b79a6" stroke-width="1" vector-effect="non-scaling-stroke"/>`})});
+  s+=`</g>`;
+  const c=condAt(0);const R=S.ranked.length?S.ranked:rankNow(c);const sc={};R.forEach((e,i)=>sc[e.z.id]={e,i});
+  M.pin=[];
+  S.zones.forEach(z=>{const p=w2s(z),w=sc[z.id],e=w&&w.e;if(p.x<-40||p.y<-40||p.x>M.w+40||p.y>M.h+40)return;
+    const st=e?e.signal:"Limited",col=st==="Strong"?"#3fd08a":st==="Mixed"?"#f0b429":"#ef6b6b",rad=e?18+26*clamp01((e.score-.4)/.4):14;
+    if(e)s+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rad.toFixed(0)}" fill="${col}" opacity=".22"/>`;
+    const rk=w&&w.i<5?w.i+1:"";M.pin.push({z,x:p.x,y:p.y});
+    s+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${S.sel===z.id?14:11}" fill="${col}" stroke="#05121c" stroke-width="2.5"/><text x="${p.x.toFixed(1)}" y="${(p.y+4).toFixed(1)}" font-size="12" font-weight="800" text-anchor="middle" fill="#05121c">${rk}</text>`;
+    if(M.s*(S.lake.bbox[2]-S.lake.bbox[0])>260||S.sel===z.id)s+=`<text x="${p.x.toFixed(1)}" y="${(p.y-17).toFixed(1)}" font-size="11" text-anchor="middle" fill="#fff" stroke="#05121c" stroke-width="3" paint-order="stroke">${esc(z.name)}</text>`});
+  if(S.user){const u=w2s(toXY(S.user.lat,S.user.lon)),ar=Math.max(10,(S.user.acc||0)*M.s);s+=`<circle cx="${u.x.toFixed(1)}" cy="${u.y.toFixed(1)}" r="${Math.min(ar,120).toFixed(0)}" fill="#3b82f6" opacity=".15"/><circle cx="${u.x.toFixed(1)}" cy="${u.y.toFixed(1)}" r="8" fill="#3b82f6" stroke="#fff" stroke-width="3"/>`}
+  // wind arrow + scale
+  const wd=(DIRS[c.dir]+180)%360;s+=`<g transform="translate(34 40)"><circle r="24" fill="rgba(5,12,20,.7)"/><g transform="rotate(${wd})"><path d="M0 -14L7 6L0 2L-7 6Z" fill="#9fd3f2"/></g><text y="38" font-size="10" text-anchor="middle" fill="#9fd3f2">${c.wind} mph</text></g>`;
+  const mt=[50,100,200,500,1000,2000,5000].find(v=>v*M.s>70)||5000,wpx=mt*M.s;s+=`<g transform="translate(12 ${M.h-24})"><path d="M0 0h${wpx.toFixed(0)}" stroke="#fff" stroke-width="2"/><text y="-5" font-size="10" fill="#fff">${fmtDist(mt)}</text></g>`;
+  svg.innerHTML=s}
+function mapTapAt(x,y){let b=null,bd=26;M.pin.forEach(p=>{const d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;b=p}});if(b){S.sel=b.z.id;renderMap();zoneSheet(b.z.id)}}
+function zoneSheet(id){const z=S.zones.find(q=>q.id===id);if(!z)return;const e=evaluate(S.species,z,condAt(0));
+  openSheet(spotCard(e,0).replace('class="card spot"','class="spot"').replace('<div class="rank">1</div>','<div class="rank">★</div>').replace(' hidden>','>')+`<button class="btn block" style="margin-top:8px" data-close>Close</button>`)}
+(function mapEvents(){const svg=$("#map");let tapStart=null,pinch=null;
+  svg.addEventListener("pointerdown",e=>{svg.setPointerCapture(e.pointerId);M.pts.set(e.pointerId,{x:e.offsetX,y:e.offsetY});tapStart={x:e.offsetX,y:e.offsetY,t:Date.now(),moved:false};if(M.pts.size===2){const[a,b]=[...M.pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)}}});
+  svg.addEventListener("pointermove",e=>{if(!M.pts.has(e.pointerId))return;const p=M.pts.get(e.pointerId),dx=e.offsetX-p.x,dy=e.offsetY-p.y;M.pts.set(e.pointerId,{x:e.offsetX,y:e.offsetY});
+    if(M.pts.size===1){if(tapStart&&Math.hypot(e.offsetX-tapStart.x,e.offsetY-tapStart.y)>6)tapStart.moved=true;if(tapStart&&tapStart.moved){M.tx+=dx;M.ty+=dy;renderMap()}}
+    else if(M.pts.size===2&&pinch){const[a,b]=[...M.pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(tapStart)tapStart.moved=true;mapZoom(d/pinch.d,(a.x+b.x)/2,(a.y+b.y)/2);pinch.d=d}});
+  const up=e=>{const was=M.pts.size;M.pts.delete(e.pointerId);if(M.pts.size<2)pinch=null;if(was===1&&tapStart&&!tapStart.moved&&Date.now()-tapStart.t<600)mapTapAt(e.offsetX,e.offsetY);if(!M.pts.size)tapStart=null};
+  svg.addEventListener("pointerup",up);svg.addEventListener("pointercancel",e=>{M.pts.delete(e.pointerId);pinch=null});
+  svg.addEventListener("wheel",e=>{e.preventDefault();mapZoom(e.deltaY<0?1.2:1/1.2,e.offsetX,e.offsetY)},{passive:false});
+  $("#mIn").onclick=()=>mapZoom(1.5);$("#mOut").onclick=()=>mapZoom(1/1.5);$("#mFit").onclick=mapFit;
+  $("#mMe").onclick=()=>{if(!S.user)return;const p=toXY(S.user.lat,S.user.lon);M.tx=M.w/2-p.x*M.s;M.ty=M.h/2-p.y*M.s;renderMap()};
+  window.addEventListener("resize",()=>{if(S.tab==="map-tab"){mapResize();renderMap()}})})();
+
+/* ============ GPS watch ============ */
+let watchId=null;
+function startGpsWatch(){if(watchId!=null||!navigator.geolocation||S.demo)return;try{watchId=navigator.geolocation.watchPosition(p=>{S.user={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};if(S.tab==="map-tab")renderMap();if(S.tab==="today"&&!window.__skipTodayGps)softToday()},()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:30000})}catch(e){}}
+let softT=0;function softToday(){const n=Date.now();if(n-softT<8000)return;softT=n;if(S.lake)renderToday()}
+
+/* ============ camera / AR ============ */
+let camOn=false,stream=null,heading=null,pitch=0,hasOri=false,oriTimer=null,raf=0,manualHdg=0,oriHandler=null;
+const FOV_H=54;
+function compassHeading(a,b,g){const r=Math.PI/180,A=a*r,B=b*r,G=g*r,cA=Math.cos(A),sA=Math.sin(A),sB=Math.sin(B),cG=Math.cos(G),sG=Math.sin(G),rA=-cA*sG-sA*sB*cG,rB=-sA*sG+cA*sB*cG;let h=Math.atan(rA/rB);if(rB<0)h+=Math.PI;else if(rA<0)h+=2*Math.PI;return h*180/Math.PI}
+function smoothHeading(h){if(heading==null){heading=h;return}const a=heading*D2R,b=h*D2R,k=.18;const x=Math.cos(a)*(1-k)+Math.cos(b)*k,y=Math.sin(a)*(1-k)+Math.sin(b)*k;heading=((Math.atan2(y,x)*R2D)+360)%360}
+async function camStart(){
+  $("#hudNote").textContent="";let camOk=false,msg="";
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});const v=$("#vid");v.srcObject=stream;await v.play().catch(()=>{});camOk=true}
+  catch(e){msg=(window.isSecureContext===false)?"Camera needs a secure (https) page.":"Camera not available ("+(e&&e.name==="NotAllowedError"?"permission denied":"no camera")+"). Showing the compass view without video."}
+  // orientation permission (iOS) must come from the tap
+  try{if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function"){const r=await DeviceOrientationEvent.requestPermission();if(r!=="granted")msg=(msg?msg+" ":"")+"Motion access denied, so use the slider to turn the view."}}catch(e){}
+  hasOri=false;heading=null;
+  oriHandler=e=>{let h=null;if(e.webkitCompassHeading!=null&&!isNaN(e.webkitCompassHeading))h=e.webkitCompassHeading;else if(e.alpha!=null&&e.beta!=null&&e.gamma!=null&&(e.absolute||e.type==="deviceorientationabsolute"))h=compassHeading(e.alpha,e.beta,e.gamma);
+    if(h==null)return;if(e.beta!=null)pitch=e.beta-90;if(!hasOri){$("#camManual").hidden=true;$("#hudNote").textContent=""}hasOri=true;smoothHeading(h)};
+  window.addEventListener("deviceorientationabsolute",oriHandler,true);window.addEventListener("deviceorientation",oriHandler,true);
+  camOn=true;$("#camStart").hidden=true;$("#camStop").hidden=false;$("#hudNote").textContent=msg;
+  clearTimeout(oriTimer);oriTimer=setTimeout(()=>{if(!hasOri){$("#camManual").hidden=false;if(!msg)$("#hudNote").textContent="No compass detected"}},2200);
+  cancelAnimationFrame(raf);raf=requestAnimationFrame(camDraw)}
+function camStop(){camOn=false;cancelAnimationFrame(raf);clearTimeout(oriTimer);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("#vid").srcObject=null;if(oriHandler){window.removeEventListener("deviceorientationabsolute",oriHandler,true);window.removeEventListener("deviceorientation",oriHandler,true)}
+  $("#camStart").hidden=false;$("#camStop").hidden=true;const cv=$("#cv");cv.getContext("2d").clearRect(0,0,cv.width,cv.height)}
+function camDraw(){if(!camOn)return;raf=requestAnimationFrame(camDraw);const cv=$("#cv"),box=$("#camwrap").getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(box.width*dpr)||cv.height!==Math.round(box.height*dpr)){cv.width=Math.round(box.width*dpr);cv.height=Math.round(box.height*dpr)}
+  const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);const W=box.width,H=box.height;g.clearRect(0,0,W,H);
+  const hd=hasOri?heading:manualHdg;if(hd==null){return}
+  $("#hudHead").textContent="Facing "+Math.round(hd)+"° "+dirName(hd);
+  const vf=FOV_H*H/W,hy=clamp(H/2+pitch*(H/vf),H*.2,H*.85);
+  // horizon line
+  g.strokeStyle="rgba(255,255,255,.35)";g.setLineDash([6,6]);g.beginPath();g.moveTo(0,hy);g.lineTo(W,hy);g.stroke();g.setLineDash([]);
+  if(!S.user)return;const u=S.user,uxy=toXY(u.lat,u.lon),R=rankNow(),rk={};R.forEach((e,i)=>rk[e.z.id]=e);
+  const items=S.zones.map(z=>{const d=Math.hypot(z.x-uxy.x,z.y-uxy.y),b=bearXY(uxy,z),dx=rel180(b-hd),e=rk[z.id];return{z,d,b,dx,e}}).filter(o=>o.d<4000).sort((a,b)=>b.d-a.d);
+  g.textAlign="center";let best=null;
+  items.forEach(o=>{if(o.e&&(!best||o.e.score>best.e.score))best=o;const x=W/2+o.dx/FOV_H*W;if(Math.abs(o.dx)>FOV_H/2+6)return;
+    const y=hy+28+clamp(150*Math.exp(-o.d/260),0,150)*(H/700);const st=o.e?o.e.signal:"Limited",col=st==="Strong"?"#3fd08a":st==="Mixed"?"#f0b429":"#ef6b6b";
+    g.font="700 13px system-ui";const t1=o.z.name,t2=fmtDist(o.d)+(o.e?" · "+o.e.signal:"");const w=Math.max(g.measureText(t1).width,g.measureText(t2).width)+18;
+    g.fillStyle="rgba(5,12,20,.78)";g.beginPath();g.roundRect?g.roundRect(x-w/2,y-34,w,42,9):g.rect(x-w/2,y-34,w,42);g.fill();g.strokeStyle=col;g.lineWidth=2;g.stroke();
+    g.fillStyle="#fff";g.fillText(t1,x,y-17);g.font="12px system-ui";g.fillStyle=col;g.fillText(t2,x,y-2);
+    g.fillStyle=col;g.beginPath();g.moveTo(x,y+14);g.lineTo(x-7,y+6);g.lineTo(x+7,y+6);g.fill()});
+  // off-screen guide to best spot
+  if(best&&Math.abs(best.dx)>FOV_H/2){const left=best.dx<0;g.font="700 13px system-ui";g.fillStyle="rgba(5,12,20,.8)";const t=(left?"◀ ":"")+best.z.name+" · "+fmtDist(best.d)+(left?"":" ▶");const w=g.measureText(t).width+18;const x=left?w/2+8:W-w/2-8;g.fillRect(x-w/2,H-54,w,32);g.fillStyle="#fff";g.fillText(t,x,H-33)}}
+
+/* ============ log / plans / share ============ */
+function zoneById(id){return S.zones.find(z=>z.id===id)}
+function addPlan(id){const z=zoneById(id);if(!z)return;const c=condAt(0),e=evaluate(S.species,z,c),l=lureList(S.species,c,e.depth)[0];
+  S.plans.unshift({id:"p"+Date.now(),species:S.species,zone:z.name,lake:S.lake.name||"Unnamed lake",signal:e.signal,lure:l.n,when:TIMES[c.time]+", "+c.wind+" mph "+c.dir,at:Date.now()});persist();toast("Added to your plans");renderLog()}
+function logSheet(zid){const z=zid&&zoneById(zid);const c=condAt(0),lure=z?lureList(S.species,c,evaluate(S.species,z,c).depth)[0].n:"";
+  openSheet(`<h3>Log a catch</h3><label class="f">Species</label><select id="lgSp">${Object.keys(SPECIES).map(k=>`<option value="${k}"${k===S.species?" selected":""}>${SPECIES[k].name}</option>`).join("")}<option value="other">Other</option></select>
+  <label class="f">Length (inches, optional)</label><input type="text" inputmode="decimal" id="lgLen"><label class="f">Spot</label><input type="text" id="lgZone" value="${esc(z?z.name:"")}"><label class="f">Lure or bait</label><input type="text" id="lgLure" value="${esc(lure)}"><label class="f">Notes</label><textarea id="lgNote"></textarea>
+  <div class="row" style="margin-top:12px"><button class="btn pri" data-lgsave>Save</button><button class="btn" data-close>Cancel</button></div>`)}
+function saveLog(){const n=$("#lgNote").value.trim(),c=condAt(0);S.logs.unshift({id:"l"+Date.now(),species:$("#lgSp").value,len:$("#lgLen").value.trim(),zone:$("#lgZone").value.trim(),lure:$("#lgLure").value.trim(),note:n,lake:S.lake?(S.lake.name||"Unnamed lake"):"",air:c.air,wind:c.wind+" "+c.dir,press:c.press,water:Math.round(c.water),at:Date.now(),pos:S.user?{lat:+S.user.lat.toFixed(5),lon:+S.user.lon.toFixed(5)}:null});persist();closeSheet();toast("Catch saved");renderLog()}
+function renderLog(){$("#fb").value=S.fb||"";
+  $("#catches").innerHTML=S.logs.length?S.logs.map(l=>`<div class="item"><b>${esc(l.species==="other"?"Fish":SPECIES[l.species]?SPECIES[l.species].short:l.species)}${l.len?" · "+esc(l.len)+" in":""}</b><span class="pill">${new Date(l.at).toLocaleDateString()}</span><div class="small muted">${esc(l.zone)}${l.lake?" · "+esc(l.lake):""}${l.lure?" · "+esc(l.lure):""}</div>${l.note?`<div class="small">${esc(l.note)}</div>`:""}<button class="btn sm" data-dl="${l.id}" style="margin-top:6px">Delete</button></div>`).join(""):'<div class="muted small">No catches yet. Tap Log a catch when you land one.</div>';
+  $("#plans").innerHTML=S.plans.length?S.plans.map(p=>`<div class="item"><b>${esc(p.zone)}</b><span class="pill">${esc(p.signal)}</span><div class="small muted">${esc((SPECIES[p.species]||{}).short||"")} · ${esc(p.lure)} · ${esc(p.when)}</div><button class="btn sm" data-dp="${p.id}" style="margin-top:6px">Remove</button></div>`).join(""):'<div class="muted small">No plans yet. Tap Plan this on a spot.</div>'}
+function reportText(){const today=new Date().toDateString(),L=S.logs.filter(l=>new Date(l.at).toDateString()===today);const c=S.lake?condAt(0):null;
+  let t="ShoreVision day report\n";if(S.lake)t+=(S.lake.name||"Unnamed lake")+(S.demo?" (demo)":"")+"\n";if(c)t+=`Conditions: ${c.air}°F air, wind ${c.wind} mph ${c.dir}, pressure ${c.press}, water ~${Math.round(c.water)}°F est.\n`;
+  if(S.ranked[0])t+="Top spot suggested: "+S.ranked[0].z.name+" ("+S.ranked[0].signal+")\n";
+  t+="\nCatches today: "+(L.length||"none")+"\n";L.forEach(l=>{t+="- "+(SPECIES[l.species]?SPECIES[l.species].short:"Fish")+(l.len?" "+l.len+"in":"")+(l.zone?" at "+l.zone:"")+(l.lure?" on "+l.lure:"")+(l.note?" ("+l.note+")":"")+"\n"});
+  if(S.fb)t+="\nNotes on the app:\n"+S.fb+"\n";return t}
+async function share(){const text=reportText();try{if(navigator.share){await navigator.share({title:"ShoreVision day report",text});return}}catch(e){if(e&&e.name==="AbortError")return}
+  try{await navigator.clipboard.writeText(text);toast("Copied. Paste it into a text message.")}catch(e){openSheet(`<h3>Copy this report</h3><textarea style="min-height:220px">${esc(text)}</textarea><button class="btn block" style="margin-top:8px" data-close>Close</button>`)}}
+
+/* ============ events ============ */
+document.addEventListener("click",e=>{const t=e.target.closest("button,[data-open],a");if(!t)return;
+  if(t.matches("[data-close]")){closeSheet();return}
+  if(t.dataset.open){const bd=t.parentElement.querySelector(".bd");bd.hidden=!bd.hidden;return}
+  if(t.dataset.sp){S.species=t.dataset.sp;persist();renderToday();if(S.tab==="map-tab")renderMap();return}
+  if(t.dataset.df!=null&&t.closest("#distf")){S.maxDist=+t.dataset.df;persist();renderToday();return}
+  if(t.dataset.plan){addPlan(t.dataset.plan);return}
+  if(t.dataset.log!==undefined){closeSheet();logSheet(t.dataset.log);return}
+  if(t.dataset.showmap){closeSheet();S.sel=t.dataset.showmap;setTab("map-tab");const z=zoneById(S.sel);if(z){M.tx=M.w/2-z.x*M.s;M.ty=M.h/2-z.y*M.s;renderMap()}return}
+  if(t.dataset.lk){S.lakes.forEach(l=>{});selectLake(t.dataset.lk);saveSession();closeSheet();return}
+  if(t.dataset.wadj!=null){const v=t.dataset.wadj;S.waterAdj=v==="0"?0:S.waterAdj+(+v);persist();$("#wv").textContent=Math.round(condAt(0).water)+"°F";renderToday();return}
+  if(t.dataset.cl){S.clarity=t.dataset.cl;persist();$$("#clar button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.cl===S.clarity)));renderToday();return}
+  if(t.hasAttribute("data-condok")){const m=S.manual;if($("#mAir")){m.air=clamp(+$("#mAir").value||m.air,-20,115);m.wind=clamp(+$("#mWind").value||0,0,80);m.dir=$("#mDir").value;m.sky=$("#mSky").value;m.press=$("#mPress").value;persist()}closeSheet();renderAll();return}
+  if(t.hasAttribute("data-lgsave")){saveLog();return}
+  if(t.dataset.dl){S.logs=S.logs.filter(l=>l.id!==t.dataset.dl);persist();renderLog();return}
+  if(t.dataset.dp){S.plans=S.plans.filter(l=>l.id!==t.dataset.dp);persist();renderLog();return}
+  if(t.closest("#nav")&&t.dataset.t){setTab(t.dataset.t);return}
+  switch(t.id){
+   case"goGps":start("gps");break;
+   case"goDemo":start("demo");break;
+   case"goSearch":$("#searchBox").hidden=!$("#searchBox").hidden;$("#q").focus();break;
+   case"qGo":doSearch();break;
+   case"lakeBtn":lakeSheet();break;
+   case"condBtn":condSheet();break;
+   case"refreshBtn":{S.tab="welcome";$("#nav").hidden=true;setTab("welcome");break}
+   case"camStart":camStart();break;case"camStop":camStop();break;
+   case"logAdd":logSheet();break;case"shareBtn":share();break;
+   case"resetBtn":if(confirm("Clear saved lakes, plans and catches on this phone?")){try{localStorage.removeItem(KEY)}catch(x){}location.reload()}break}});
+$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet()});
+$("#fb").addEventListener("input",e=>{S.fb=e.target.value;persist()});
+$("#hdg").addEventListener("input",e=>{manualHdg=+e.target.value;$("#hdgv").textContent=manualHdg+"°"});
+$("#q").addEventListener("keydown",e=>{if(e.key==="Enter")doSearch()});
+async function doSearch(){const q=$("#q").value.trim();if(!q)return;$("#qRes").innerHTML='<div class="muted small" style="margin-top:8px">Searching…</div>';
+  try{const r=await geocode(q);$("#qRes").innerHTML=r.length?r.map((x,i)=>`<button class="lakeitem" data-res="${i}"><span>${esc(x.name)}</span></button>`).join(""):'<div class="muted small" style="margin-top:8px">No matches. Try a nearby town.</div>';
+    $$("#qRes [data-res]").forEach(b=>b.onclick=()=>{const x=r[+b.dataset.res];start("search",{lat:x.lat,lon:x.lon,acc:0})})}
+  catch(e){$("#qRes").innerHTML='<div class="banner warn">Search is unavailable right now. Check your signal and try again.</div>'}}
+window.addEventListener("online",()=>{S.offline=false;renderChip()});window.addEventListener("offline",renderChip);
+if(S.saved)showResume();
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+window.__sv={S,start,rankNow,buildZones,parseWater,compassHeading};
+</script>
+</body>
+</html>
