@@ -382,9 +382,13 @@ loadSaved();
 
 /* ============ data: Overpass / NWS / Nominatim ============ */
 async function fetchJSON(url,opt,ms){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),ms||20000);try{const r=await fetch(url,Object.assign({signal:ctl.signal},opt||{}));if(!r.ok)throw new Error("HTTP "+r.status);return await r.json()}finally{clearTimeout(t)}}
-const OVP=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
-async function overpass(q){let err;for(const e of OVP){try{return await fetchJSON(e,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)},24000)}catch(x){err=x}}throw err||new Error("Overpass unavailable")}
-const R_M=6500;
+const OVP=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+async function overpass(q){const errs=[];
+  const one=async e=>{try{const j=await fetchJSON(e,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)},22000);
+      if(!j||!Array.isArray(j.elements))throw new Error("bad reply");if(!j.elements.length&&j.remark&&/error|timeout|memory/i.test(j.remark))throw new Error("server busy");return j}
+    catch(x){errs.push((new URL(e)).hostname+": "+(x&&x.name==="AbortError"?"timeout":(x&&x.message)||x));throw x}};
+  try{return await Promise.any(OVP.map(one))}catch(x){const m=new Error("Lake map servers: "+errs.join("; "));throw m}}
+let R_M=6500;
 const qWater=(la,lo)=>`[out:json][timeout:25];(way["natural"="water"](around:${R_M},${la},${lo});relation["natural"="water"](around:${R_M},${la},${lo});way["landuse"="reservoir"](around:${R_M},${la},${lo}););out geom tags;`;
 const qAccess=(la,lo)=>`[out:json][timeout:25];(nwr["leisure"~"^(fishing|slipway)$"](around:${R_M},${la},${lo});nwr["man_made"="pier"](around:${R_M},${la},${lo});nwr["waterway"="dam"](around:${R_M},${la},${lo}););out center tags;`;
 function stitch(ways){const key=p=>p.lat.toFixed(6)+","+p.lon.toFixed(6),rings=[],pool=ways.map(w=>w.slice());
@@ -495,8 +499,10 @@ async function start(mode,loc){
     stepSet("lake","run");stepSet("wx","run");
     const wxP=(mode==="demo"?Promise.resolve(demoWx()):getWeather(loc.lat,loc.lon)).then(w=>{stepSet("wx","ok","Weather: "+(w.place||"loaded"));return w}).catch(e=>{stepSet("wx","err","Weather unavailable. Using manual conditions.");return null});
     let wj,aj;
-    try{[wj,aj]=await Promise.all([mode==="demo"?Promise.resolve(demoWater()):overpass(qWater(loc.lat,loc.lon)),mode==="demo"?Promise.resolve({elements:[]}):overpass(qAccess(loc.lat,loc.lon)).catch(()=>({elements:[]}))])}
-    catch(e){stepSet("lake","err","Couldn't reach the lake map service");S.wx=await wxP;throw new Error("The lake map service didn't respond. Check your signal and try again."+(S.saved?" Or use your last saved lakes below.":""))}
+    const getAll=async()=>Promise.all([mode==="demo"?Promise.resolve(demoWater()):overpass(qWater(loc.lat,loc.lon)),mode==="demo"?Promise.resolve({elements:[]}):overpass(qAccess(loc.lat,loc.lon)).catch(()=>({elements:[]}))]);
+    try{try{[wj,aj]=await getAll()}catch(e1){stepSet("lake","run","Map servers are busy, trying a smaller area");R_M=2500;[wj,aj]=await getAll()}}
+    catch(e){stepSet("lake","err","Couldn't reach the lake map service");S.wx=await wxP;throw new Error("The lake map servers didn't respond ("+(e&&e.message||"unknown")+"). They are free community servers and are sometimes busy. Wait a minute and tap Find fishing spots again."+(S.saved?" Or use your last saved lakes below.":""))}
+    finally{R_M=6500}
     let lakes=parseWater(wj);S.access=parseAccess(aj);
     if(!lakes.length){stepSet("lake","err","No mapped lakes within 4 miles");S.wx=await wxP;throw new Error("No mapped lakes or ponds within about 4 miles. Try searching for the lake by name, or move closer to the water.")}
     lakes.sort((a,b)=>(a.inside?0:1)-(b.inside?0:1)||a.dist-b.dist);
