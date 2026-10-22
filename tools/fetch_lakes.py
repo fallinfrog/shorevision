@@ -70,7 +70,9 @@ def build(region):
         if c[0] is None: continue
         tags = {k: v for k, v in (el.get("tags") or {}).items() if k in ("name", "leisure", "man_made", "waterway")}
         A.append({"lat": round(c[0], 6), "lon": round(c[1], 6), "tags": tags})
-    out = {"region": region, "built": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"),
+    stats = {"raw_" + k: v for k, v in Counter(el["type"] for el in water["elements"]).items()}
+    stats["raw_relations_named"] = sorted({(el.get("tags") or {}).get("name", "?") for el in water["elements"] if el["type"] == "relation"})[:50]
+    out = {"stats": stats, "region": region, "built": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"),
            "attribution": "Map data (c) OpenStreetMap contributors, ODbL", "water": W, "access": A}
     os.makedirs("data", exist_ok=True)
     path = f"data/{region['id']}.json"
