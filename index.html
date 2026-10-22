@@ -122,6 +122,12 @@ label.f{display:block;margin:10px 0 4px;font-size:13px;color:var(--muted)}
 .pill{font-size:11px;padding:2px 7px;border-radius:99px;background:var(--card2);color:var(--muted);margin-left:6px}
 a{color:var(--accent)}
 .toast{position:fixed;left:50%;bottom:calc(78px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#e8f4fc;color:#07202f;padding:10px 16px;border-radius:12px;z-index:60;font-weight:600;max-width:90%}
+.here{border-color:#25506f;background:linear-gradient(180deg,#12283a,#12212f)}
+.herehd{display:flex;align-items:center;gap:8px}.herehd b{font-size:18px}
+.heremap{display:block;width:100%;max-width:300px;margin:10px auto}
+.lanes{margin:6px 0 4px;padding-left:20px}.lanes li{margin:6px 0;font-size:15px}
+.hrow{display:flex;gap:10px;margin:8px 0;font-size:14px}.hrow i{font-style:normal;width:20px;flex:none;text-align:center}
+.hrow.better{color:#9fe8c2}
 </style>
 </head>
 <body>
@@ -182,6 +188,7 @@ a{color:var(--accent)}
     <button class="btn sm" id="refreshBtn">Refresh</button>
   </div>
   <div id="alerts"></div>
+  <div id="here"></div>
   <div id="strip" class="strip" style="margin-top:10px"></div>
   <div class="row small muted" style="margin-top:6px;justify-content:space-between"><span id="wxSrc"></span><button class="btn sm" id="condBtn">Adjust conditions</button></div>
   <h2>What are you fishing for?</h2>
@@ -558,6 +565,80 @@ function demoWx(){const out=[],now=new Date();now.setMinutes(0,0,0);const dirs=[
   for(let i=0;i<30;i++){const t=new Date(now.getTime()+i*36e5),h=t.getHours();out.push({t,air:Math.round(58+10*Math.sin((h-9)/24*2*Math.PI)),wind:6+(i%6),dir:dirs[Math.floor(i/5)%6],sky:i%9<4?"partly":i%9<6?"overcast":"clear",short:i%9<4?"Partly Cloudy":i%9<6?"Mostly Cloudy":"Sunny",pop:5})}
   return{ok:true,source:"Demo weather",place:"Demo",hours:out,obs:null,press:"falling",fetched:Date.now()}}
 
+/* ============ right here ============ */
+const CAST=36; // ~40 yards
+function lakeShorePts(l){if(!l._pts){let per=0;const r=l.main;for(let i=0;i<r.length;i++)per+=distXY(r[i],r[(i+1)%r.length]);l._sp=clamp(per/2500,3,20);l._pts=resample(r,l._sp);if(!l._pts.length)l._pts=r.slice()}return l._pts}
+function nearestShore(l,p){const pts=lakeShorePts(l);let bi=0,bd=1e18;for(let i=0;i<pts.length;i++){const q=pts[i],d=(q.x-p.x)**2+(q.y-p.y)**2;if(d<bd){bd=d;bi=i}}return{i:bi,p:pts[bi],d:Math.sqrt(bd)}}
+function inWater(l,p){return pip(p,l.main)&&!l.inners.some(r=>pip(p,r))}
+const ray=(o,b,d)=>({x:o.x+Math.sin(b*D2R)*d,y:o.y-Math.cos(b*D2R)*d});
+function circMean(bs){let x=0,y=0;bs.forEach(b=>{x+=Math.cos(b*D2R);y+=Math.sin(b*D2R)});return((Math.atan2(y,x)*R2D)+360)%360}
+function hereInfo(){
+  const l=S.lake;if(!l||!S.user)return null;
+  const u=toXY(S.user.lat,S.user.lon),ns=nearestShore(l,u),onWater=inWater(l,u)&&ns.d>15;
+  if(!onWater&&ns.d>150)return{far:true,l,u,ns,bear:bearXY(u,ns.p)};
+  const O=onWater?u:(ns.d<=25?u:ns.p),pts=lakeShorePts(l),n=pts.length;
+  const fan=[];for(let b=0;b<360;b+=10){if(inWater(l,ray(O,b,CAST*.45))&&inWater(l,ray(O,b,CAST)))fan.push(b)}
+  let waterDir=fan.length?circMean(fan):bearXY(ns.p,l.center);
+  // fan contiguous runs around waterDir only (ignore far-side bits)
+  const fanNear=fan.filter(b=>angDiff(b,waterDir)<=90);
+  // shoreline shape right here
+  const k=Math.max(2,Math.round(45/l._sp)),a=pts[(ns.i-k+n)%n],b=pts[ns.i],c=pts[(ns.i+k)%n],sgn=Math.sign(ringArea(l.main))||1;
+  const v1={x:b.x-a.x,y:b.y-a.y},v2={x:c.x-b.x,y:c.y-b.y},ang=Math.atan2(v1.x*v2.y-v1.y*v2.x,v1.x*v2.x+v1.y*v2.y)*sgn;
+  const shape=onWater?"bank":ang<-.35?"point":ang>.35?"cove":"bank";
+  const t1=bearXY(a,c),t2=(t1+180)%360;
+  const cond=condAt(0),zone={type:shape,x:ns.p.x,y:ns.p.y,bearing:bearXY(l.center,ns.p),id:"here",name:"Right here"};
+  const e=evaluate(S.species,zone,cond);
+  // casting lanes
+  const lanes=[];
+  lanes.push({b:waterDir,t:shape==="point"?"Straight off the tip of the point, where the bottom usually drops fastest. Count your lure down.":shape==="cove"?"Out the middle of the cove toward the mouth, where fish slide in and out.":"Straight out toward deeper water. Let it sink before you start the retrieve."});
+  [t1,t2].forEach(t=>{const tb=angDiff(t,waterDir)>100?null:t;let best=null;for(const off of [15,25,35,45]){for(const s of [1,-1]){const bb=(t+s*off+360)%360;if(angDiff(bb,waterDir)<angDiff(t,waterDir)&&inWater(l,ray(O,bb,CAST*.8))){best=bb;break}}if(best!=null)break}
+    if(best!=null&&lanes.every(x=>angDiff(x.b,best)>30))lanes.push({b:best,t:"Along the bank toward the "+dirName(best)+". Fish cruise the shallow edge here."})});
+  const near=S.zones.map(z=>({z,d:distXY(O,z),b:bearXY(O,z)})).filter(o=>o.d>8&&o.d<220).sort((x,y)=>x.d-y.d);
+  const inReach=near.find(o=>o.d<=CAST*1.3&&["dock","point","spot","dam"].includes(o.z.type));
+  if(inReach&&lanes.every(x=>angDiff(x.b,inReach.b)>20))lanes.unshift({b:inReach.b,t:"At the "+TYPE_LABEL[inReach.z.type].toLowerCase()+" ("+fmtDist(inReach.d)+" "+dirName(inReach.b)+"). Cover close to you is the first place to try."});
+  // wind on this bank
+  let wind;const blowTo=(DIRS[cond.dir]+180)%360,landward=(waterDir+180)%360;
+  if(cond.wind<4)wind={k:"calm",t:"Calm right now, so wind isn't moving bait around. Fish slower and quieter."};
+  else if(angDiff(blowTo,landward)<60)wind={k:"on",t:cond.wind+" mph wind is blowing into this bank. That pushes bait toward you, which is usually good. Cast into the wind and bring it back with the waves."};
+  else if(angDiff(blowTo,waterDir)<60)wind={k:"off",t:cond.wind+" mph wind is blowing off this bank, so the water here is calmer. Fish may sit a bit deeper, so make longer casts."};
+  else wind={k:"cross",t:cond.wind+" mph cross-wind. Cast up-wind and let your bait drift along the bank."};
+  // better option nearby
+  const R=rankNow(cond),better=R.find(x=>x.z.id!=="here"&&distXY(O,x.z)<600&&distXY(O,x.z)>40&&x.score>e.score+.05);
+  const lure=lureList(S.species,cond,e.depth);
+  return{far:false,l,u,O,ns,onWater,fan:fanNear,waterDir,shape,e,lanes:lanes.slice(0,3),wind,near:near.slice(0,4),better,lure,cond}}
+function hereMap(h){
+  const S2=260,c=S2/2,rad=118,sc=rad/60,P=p=>({x:c+(p.x-h.O.x)*sc,y:c+(p.y-h.O.y)*sc});
+  const path=r=>{let d="";r.forEach((p,i)=>{const q=P(p);d+=(i?"L":"M")+q.x.toFixed(1)+" "+q.y.toFixed(1)});return d+"Z"};
+  let s=`<svg viewBox="0 0 ${S2} ${S2}" class="heremap" role="img" aria-label="Map of the water around you with casting directions"><defs><clipPath id="hc"><circle cx="${c}" cy="${c}" r="${rad}"/></clipPath></defs><circle cx="${c}" cy="${c}" r="${rad}" fill="#1c2a1f"/><g clip-path="url(#hc)">`;
+  s+=`<path d="${path(h.l.main)}" fill="#1d6fa8"/>`;h.l.inners.forEach(r=>s+=`<path d="${path(r)}" fill="#1c2a1f"/>`);
+  s+=`<path d="${path(h.l.main)}" fill="none" stroke="#7fd0f7" stroke-width="2"/>`;
+  // cast range ring + fan
+  s+=`<circle cx="${c}" cy="${c}" r="${CAST*sc}" fill="none" stroke="#fff" stroke-opacity=".35" stroke-dasharray="4 5"/>`;
+  h.fan.forEach(b=>{const a1=(b-5)*D2R,a2=(b+5)*D2R,r=CAST*sc;s+=`<path d="M${c} ${c}L${(c+Math.sin(a1)*r).toFixed(1)} ${(c-Math.cos(a1)*r).toFixed(1)}A${r} ${r} 0 0 1 ${(c+Math.sin(a2)*r).toFixed(1)} ${(c-Math.cos(a2)*r).toFixed(1)}Z" fill="#2bb5f5" fill-opacity=".22"/>`});
+  h.near.forEach(o=>{const q=P(o.z);s+=`<circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="6" fill="#f0b429" stroke="#05121c" stroke-width="2"/>`});
+  h.lanes.forEach((ln,i)=>{const r=CAST*sc*.92,x=c+Math.sin(ln.b*D2R)*r,y=c-Math.cos(ln.b*D2R)*r;
+    s+=`<path d="M${c} ${c}L${x.toFixed(1)} ${y.toFixed(1)}" stroke="#3fd08a" stroke-width="3.5" stroke-linecap="round" marker-end=""/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="11" fill="#3fd08a"/><text x="${x.toFixed(1)}" y="${(y+4.5).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="800" fill="#05121c">${i+1}</text>`});
+  s+=`</g>`;
+  const u=P(h.u);s+=`<circle cx="${u.x.toFixed(1)}" cy="${u.y.toFixed(1)}" r="8" fill="#3b82f6" stroke="#fff" stroke-width="3"/>`;
+  s+=`<circle cx="${c}" cy="${c}" r="${rad}" fill="none" stroke="#2a4257" stroke-width="2"/><text x="${c}" y="16" text-anchor="middle" font-size="12" font-weight="700" fill="#9bb2c5">N</text>`;
+  if(h.cond.wind>=4){const wd=(DIRS[h.cond.dir]+180)%360;s+=`<g transform="translate(${S2-24} 24) rotate(${wd})"><path d="M0 -13L7 7L0 3L-7 7Z" fill="#cfe9f8"/></g><text x="${S2-24}" y="50" text-anchor="middle" font-size="10" fill="#cfe9f8">wind</text>`}
+  s+=`<text x="10" y="${S2-8}" font-size="10" fill="#9bb2c5">ring = ~40 yd cast</text></svg>`;return s}
+function renderHere(){
+  const box=$("#here");if(!box)return;const h=hereInfo();if(!h){box.innerHTML="";return}
+  if(h.far){const ll=toLL(h.ns.p.x,h.ns.p.y);box.innerHTML=`<div class="card here"><div class="herehd"><b>Right here</b></div><p style="margin:6px 0">You're <b>${fmtDist(h.ns.d)}</b> from ${esc(h.l.name||"the water")}. The closest bank is to the <b>${dirName(h.bear)}</b>.</p><p class="small muted" style="margin:0 0 10px">Walk to the bank and this card will tell you exactly where to cast from there.</p><a class="btn sm" href="${dirUrl({lat:ll.lat,lon:ll.lon})}" target="_blank" rel="noopener">Directions to the bank</a></div>`;return}
+  const e=h.e,where=h.onWater?"You're on the water":"You're on a "+({point:"point",cove:"cove",bank:"straight bank"}[h.shape]);
+  box.innerHTML=`<div class="card here"><div class="herehd"><b>Right here</b><span class="sig ${e.signal}">${e.signal}</span></div>
+  <div class="small muted">${esc(where)}${h.l.name?" · "+esc(h.l.name):""} · water is to the ${dirName(h.waterDir)}</div>
+  ${hereMap(h)}
+  <ol class="lanes">${h.lanes.map(x=>`<li><b>Cast ${dirName(x.b)}.</b> ${esc(x.t)}</li>`).join("")}</ol>
+  <div class="hrow"><i>💨</i><span>${esc(h.wind.t)}</span></div>
+  <div class="hrow"><i>🎣</i><span><b>Tie on:</b> ${esc(h.lure[0].n)}. ${esc(h.lure[0].d)}</span></div>
+  <div class="hrow"><i>🌡</i><span>${esc(SPECIES[S.species].short)}: ${esc(e.phase.toLowerCase())} (water ~${Math.round(h.cond.water)}°F est.). Likely holding around ${e.depth[0]}–${e.depth[1]} ft.</span></div>
+  ${h.better?`<div class="hrow better"><i>➜</i><span><b>Better odds nearby:</b> ${esc(h.better.z.name)}, ${fmtDist(distXY(h.O,h.better.z))} ${dirName(bearXY(h.O,h.better.z))} (${h.better.signal}).</span></div>`:""}
+  <div class="row" style="margin-top:12px"><button class="btn pri sm" data-goar>Look around (camera)</button><button class="btn sm" data-log="">Log a catch here</button></div></div>`}
+function autoLake(){if(!S.user||!S.lakes.length||!S.lake)return;const u=toXY(S.user.lat,S.user.lon);const cur=inWater(S.lake,u)?0:nearestShore(S.lake,u).d;if(cur<200)return;
+  let best=null,bd=120;S.lakes.forEach(l=>{if(l===S.lake)return;const d=inWater(l,u)?0:nearestShore(l,u).d;if(d<bd){bd=d;best=l}});if(best){selectLake(best.id,true);toast("Switched to "+(best.name||"the water next to you"))}}
+
 /* ============ render: today ============ */
 function eligible(){const u=S.user;return S.zones.filter(z=>!S.maxDist||distToUser(z)<=S.maxDist)}
 function distToUser(z){const u=S.user;if(!u)return 0;const p=toXY(u.lat,u.lon);return Math.hypot(p.x-z.x,p.y-z.y)}
@@ -578,6 +659,7 @@ function renderToday(){
   if(S.demo)alerts.push(["warn","Demo lake with sample weather, so you can try everything. Tap Refresh and choose your location to use real data."]);
   if(S.wx&&!S.wx.ok&&!S.demo)alerts.push(["warn","Live weather isn't available here, so using the conditions you set. Tap Adjust conditions to update them."]);
   $("#alerts").innerHTML=alerts.map(a=>`<div class="banner ${a[0]}">${esc(a[1])}</div>`).join("");
+  try{renderHere()}catch(err){$("#here").innerHTML=""}
   const arrow=S.wx&&S.wx.ok?"":"";
   $("#strip").innerHTML=`<div><span>Air</span><b>${c.air}°F</b><small>${esc(c.short||c.sky)}</small></div><div><span>Wind</span><b>${c.wind} ${esc(c.dir)}</b><small>mph</small></div><div><span>Pressure</span><b>${c.press==="falling"?"Falling":c.press==="rising"?"Rising":"Steady"}</b><small>${S.wx&&S.wx.ok?"station":"set by you"}</small></div><div><span>Water</span><b>~${Math.round(c.water)}°F</b><small>estimate</small></div>`;
   $("#wxSrc").textContent=S.wx&&S.wx.ok?(S.wx.source+(S.wx.place?" · "+S.wx.place:"")):"Manual conditions";
@@ -586,7 +668,7 @@ function renderToday(){
   const R=rankNow(c);S.ranked=R;
   const top=R[0],act=activity(S.species,c),actL=act>=.75?"high":act>=.55?"moderate":"low";
   const bw=bestWindow();
-  $("#headline").innerHTML=top?`<div class="headline"><small>Today's best bet · ${esc(SPECIES[S.species].short)}</small><b>${esc(top.z.name)}</b><div>${esc(top.signal)} signal · ${esc(top.phase.toLowerCase())} · activity ${actL}.${bw?" Best window: <b>"+esc(bw)+"</b>.":""}</div></div>`:"";
+  $("#headline").innerHTML=top?`<div class="headline"><small>Best bet on this lake · ${esc(SPECIES[S.species].short)}</small><b>${esc(top.z.name)}</b><div>${esc(top.signal)} signal · ${esc(top.phase.toLowerCase())} · activity ${actL}.${bw?" Best window: <b>"+esc(bw)+"</b>.":""}</div></div>`:"";
   $("#spots").innerHTML=R.slice(0,5).map((e,i)=>spotCard(e,i)).join("")||'<div class="card muted">No spots match this filter.</div>';
   renderBars();
   const e0=top;$("#lures").innerHTML=e0?lureList(S.species,c,e0.depth).map((x,i)=>`<div class="lure${i===0?" best":""}"><svg viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[x.i]}</svg><div><em${i?' style="color:var(--muted)"':""}>${i===0?"Best pick":"Option "+(i+1)}</em><b>${esc(x.n)}</b><span>${esc(x.d)}</span></div></div>`).join(""):""}
@@ -660,7 +742,7 @@ function zoneSheet(id){const z=S.zones.find(q=>q.id===id);if(!z)return;const e=e
 /* ============ GPS watch ============ */
 let watchId=null;
 function startGpsWatch(){if(watchId!=null||!navigator.geolocation||S.demo)return;try{watchId=navigator.geolocation.watchPosition(p=>{S.user={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};if(S.tab==="map-tab")renderMap();if(S.tab==="today"&&!window.__skipTodayGps)softToday()},()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:30000})}catch(e){}}
-let softT=0;function softToday(){const n=Date.now();if(n-softT<8000)return;softT=n;if(S.lake)renderToday()}
+let softT=0;function softToday(){const n=Date.now();if(n-softT<5000)return;softT=n;if(S.lake){autoLake();renderToday()}}
 
 /* ============ camera / AR ============ */
 let camOn=false,stream=null,heading=null,pitch=0,hasOri=false,oriTimer=null,raf=0,manualHdg=0,oriHandler=null;
@@ -728,6 +810,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,[data-ope
   if(t.dataset.open){const bd=t.parentElement.querySelector(".bd");bd.hidden=!bd.hidden;return}
   if(t.dataset.sp){S.species=t.dataset.sp;persist();renderToday();if(S.tab==="map-tab")renderMap();return}
   if(t.dataset.df!=null&&t.closest("#distf")){S.maxDist=+t.dataset.df;persist();renderToday();return}
+  if(t.hasAttribute("data-goar")){setTab("cam-tab");return}
   if(t.dataset.plan){addPlan(t.dataset.plan);return}
   if(t.dataset.log!==undefined){closeSheet();logSheet(t.dataset.log);return}
   if(t.dataset.showmap){closeSheet();S.sel=t.dataset.showmap;setTab("map-tab");const z=zoneById(S.sel);if(z){M.tx=M.w/2-z.x*M.s;M.ty=M.h/2-z.y*M.s;renderMap()}return}
