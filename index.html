@@ -128,6 +128,17 @@ a{color:var(--accent)}
 .lanes{margin:6px 0 4px;padding-left:20px}.lanes li{margin:6px 0;font-size:15px}
 .hrow{display:flex;gap:10px;margin:8px 0;font-size:14px}.hrow i{font-style:normal;width:20px;flex:none;text-align:center}
 .hrow.better{color:#9fe8c2}
+.camwrap.full{position:fixed;inset:0;z-index:45;height:auto;min-height:0;border-radius:0;border:0}
+body.arOn{overflow:hidden}
+.camctl{position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));display:none;justify-content:center;gap:10px}
+.camwrap.full .camctl{display:flex}
+.camctl button{min-height:48px;min-width:48px;padding:0 14px;border-radius:24px;border:1px solid rgba(255,255,255,.25);background:rgba(5,12,20,.72);color:#fff;font-weight:700;font-size:15px}
+.camwrap.full .camhud{top:calc(10px + env(safe-area-inset-top))}
+.camhud span[hidden]{display:none}
+.arcard{position:absolute;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));background:rgba(5,12,20,.85);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:10px 12px;color:#fff}
+.arcard .sig{margin-left:6px}
+.manualbar{position:relative;z-index:46}
+body.arOn .manualbar:not([hidden]){position:fixed;left:12px;right:12px;bottom:calc(140px + env(safe-area-inset-bottom));margin:0}
 </style>
 </head>
 <body>
@@ -215,16 +226,16 @@ a{color:var(--accent)}
 <!-- CAMERA -->
 <section id="cam-tab" class="tab">
   <div class="camwrap" id="camwrap"><video id="vid" playsinline muted autoplay></video><canvas id="cv"></canvas>
-    <div class="camhud"><span id="hudHead">Heading --</span><span id="hudNote"></span></div></div>
-  <div class="row" style="margin-top:10px">
-    <button class="btn pri" id="camStart">Start camera view</button>
-    <button class="btn" id="camStop" hidden>Stop</button>
+    <div class="camhud"><span id="hudHead">Point at the water</span><span id="hudNote" hidden></span></div>
+    <div class="arcard" id="arCard" hidden></div>
+    <div class="camctl"><button id="arAlign">Align to water</button><button id="arL" aria-label="Nudge left">◀</button><button id="arR" aria-label="Nudge right">▶</button><button id="camStop" aria-label="Close camera">✕</button></div>
   </div>
-  <div id="camManual" class="card" hidden>
-    <label class="f" for="hdg">No compass detected. Turn the view by hand: <b id="hdgv">0°</b></label>
+  <button class="btn pri block" id="camStart" style="margin-top:12px">Start camera view</button>
+  <div id="camManual" class="card manualbar" hidden>
+    <label class="f" for="hdg">Turn the view: <b id="hdgv">0°</b></label>
     <input type="range" id="hdg" min="0" max="359" value="0" style="width:100%">
   </div>
-  <p class="muted small">Point your phone at the water. Pins show where each spot is, how far away, and how strong it looks. If pins drift, wave the phone in a figure-8 to calibrate its compass.</p>
+  <div class="card small muted"><b style="color:var(--text)">How to use it:</b> hold the phone up and look around. The glowing line is the shoreline, the dashed ring is about a 40-yard cast, green lines are where to cast from here, and pins mark spots across the lake. If things look off by a bit, stand at the edge, point straight out at the water and tap <b>Align to water</b>. Use ◀ ▶ to fine-tune.</div>
 </section>
 
 <!-- LOG -->
@@ -744,45 +755,110 @@ let watchId=null;
 function startGpsWatch(){if(watchId!=null||!navigator.geolocation||S.demo)return;try{watchId=navigator.geolocation.watchPosition(p=>{S.user={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};if(S.tab==="map-tab")renderMap();if(S.tab==="today"&&!window.__skipTodayGps)softToday()},()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:30000})}catch(e){}}
 let softT=0;function softToday(){const n=Date.now();if(n-softT<5000)return;softT=n;if(S.lake){autoLake();renderToday()}}
 
-/* ============ camera / AR ============ */
-let camOn=false,stream=null,heading=null,pitch=0,hasOri=false,oriTimer=null,raf=0,manualHdg=0,oriHandler=null;
-const FOV_H=54;
-function compassHeading(a,b,g){const r=Math.PI/180,A=a*r,B=b*r,G=g*r,cA=Math.cos(A),sA=Math.sin(A),sB=Math.sin(B),cG=Math.cos(G),sG=Math.sin(G),rA=-cA*sG-sA*sB*cG,rB=-sA*sG+cA*sB*cG;let h=Math.atan(rA/rB);if(rB<0)h+=Math.PI;else if(rA<0)h+=2*Math.PI;return h*180/Math.PI}
-function smoothHeading(h){if(heading==null){heading=h;return}const a=heading*D2R,b=h*D2R,k=.18;const x=Math.cos(a)*(1-k)+Math.cos(b)*k,y=Math.sin(a)*(1-k)+Math.sin(b)*k;heading=((Math.atan2(y,x)*R2D)+360)%360}
+/* ============ camera / AR (3D, sensor-fused) ============ */
+let camOn=false,stream=null,raf=0,oriHandler=null,oriTimer=null,hasOri=false,absSeen=false,manualHdg=0,yawFix=null,userYaw=0,qS=null,uS=null;
+const EYE=1.5;
+function rotM(a,b,g){const r=D2R,cX=Math.cos(b*r),sX=Math.sin(b*r),cY=Math.cos(g*r),sY=Math.sin(g*r),cZ=Math.cos(a*r),sZ=Math.sin(a*r);
+  return[cZ*cY-sZ*sX*sY,-cX*sZ,cY*sZ*sX+cZ*sY, cY*sZ+cZ*sX*sY,cZ*cX,sZ*sY-cZ*cY*sX, -cX*sY,sX,cX*cY]}
+function m2q(m){const[a,b,c,d,e,f,g,h,i]=m,t=a+e+i;let w,x,y,z;
+  if(t>0){const s=Math.sqrt(t+1)*2;w=.25*s;x=(h-f)/s;y=(c-g)/s;z=(d-b)/s}
+  else if(a>e&&a>i){const s=Math.sqrt(1+a-e-i)*2;w=(h-f)/s;x=.25*s;y=(b+d)/s;z=(c+g)/s}
+  else if(e>i){const s=Math.sqrt(1+e-a-i)*2;w=(c-g)/s;x=(b+d)/s;y=.25*s;z=(f+h)/s}
+  else{const s=Math.sqrt(1+i-a-e)*2;w=(d-b)/s;x=(c+g)/s;y=(f+h)/s;z=.25*s}return[w,x,y,z]}
+function q2m([w,x,y,z]){return[1-2*(y*y+z*z),2*(x*y-z*w),2*(x*z+y*w), 2*(x*y+z*w),1-2*(x*x+z*z),2*(y*z-x*w), 2*(x*z-y*w),2*(y*z+x*w),1-2*(x*x+y*y)]}
+function slerp(a,b,t){let d=a[0]*b[0]+a[1]*b[1]+a[2]*b[2]+a[3]*b[3];if(d<0){b=b.map(v=>-v);d=-d}
+  if(d>.9995){const r=a.map((v,i)=>v+(b[i]-v)*t),n=Math.hypot(...r);return r.map(v=>v/n)}
+  const th=Math.acos(d),s=Math.sin(th),wa=Math.sin((1-t)*th)/s,wb=Math.sin(t*th)/s;return a.map((v,i)=>v*wa+b[i]*wb)}
+const headOfM=m=>((Math.atan2(-m[2],-m[5])*R2D)+360)%360;
+function yawRot(m,deg){const c=Math.cos(-deg*D2R),s=Math.sin(-deg*D2R);return[c*m[0]-s*m[3],c*m[1]-s*m[4],c*m[2]-s*m[5], s*m[0]+c*m[3],s*m[1]+c*m[4],s*m[2]+c*m[5], m[6],m[7],m[8]]}
+function onOri(e){
+  if(e.alpha==null||e.beta==null||e.gamma==null)return;
+  const isAbs=e.type==="deviceorientationabsolute"||e.absolute===true;
+  if(isAbs)absSeen=true;else if(absSeen)return;
+  let m=rotM(e.alpha,e.beta,e.gamma);
+  if(!isAbs){const wch=e.webkitCompassHeading;
+    if(wch!=null&&!isNaN(wch)){const d=rel180(wch-headOfM(m));yawFix=yawFix==null?d:yawFix+rel180(d-yawFix)*.06}
+    if(yawFix!=null)m=yawRot(m,yawFix)}
+  const q=m2q(m);qS=qS?slerp(qS,q,.22):q;
+  if(!hasOri){hasOri=true;$("#camManual").hidden=true;arNote("")}}
+function arNote(t){const n=$("#hudNote");if(n)n.textContent=t;n.hidden=!t}
+function curM(){let m;if(hasOri&&qS)m=q2m(qS);else m=rotM((360-manualHdg)%360,90,0);return yawRot(m,userYaw)}
 async function camStart(){
-  $("#hudNote").textContent="";let camOk=false,msg="";
-  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});const v=$("#vid");v.srcObject=stream;await v.play().catch(()=>{});camOk=true}
-  catch(e){msg=(window.isSecureContext===false)?"Camera needs a secure (https) page.":"Camera not available ("+(e&&e.name==="NotAllowedError"?"permission denied":"no camera")+"). Showing the compass view without video."}
-  // orientation permission (iOS) must come from the tap
-  try{if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function"){const r=await DeviceOrientationEvent.requestPermission();if(r!=="granted")msg=(msg?msg+" ":"")+"Motion access denied, so use the slider to turn the view."}}catch(e){}
-  hasOri=false;heading=null;
-  oriHandler=e=>{let h=null;if(e.webkitCompassHeading!=null&&!isNaN(e.webkitCompassHeading))h=e.webkitCompassHeading;else if(e.alpha!=null&&e.beta!=null&&e.gamma!=null&&(e.absolute||e.type==="deviceorientationabsolute"))h=compassHeading(e.alpha,e.beta,e.gamma);
-    if(h==null)return;if(e.beta!=null)pitch=e.beta-90;if(!hasOri){$("#camManual").hidden=true;$("#hudNote").textContent=""}hasOri=true;smoothHeading(h)};
-  window.addEventListener("deviceorientationabsolute",oriHandler,true);window.addEventListener("deviceorientation",oriHandler,true);
-  camOn=true;$("#camStart").hidden=true;$("#camStop").hidden=false;$("#hudNote").textContent=msg;
-  clearTimeout(oriTimer);oriTimer=setTimeout(()=>{if(!hasOri){$("#camManual").hidden=false;if(!msg)$("#hudNote").textContent="No compass detected"}},2200);
-  cancelAnimationFrame(raf);raf=requestAnimationFrame(camDraw)}
-function camStop(){camOn=false;cancelAnimationFrame(raf);clearTimeout(oriTimer);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("#vid").srcObject=null;if(oriHandler){window.removeEventListener("deviceorientationabsolute",oriHandler,true);window.removeEventListener("deviceorientation",oriHandler,true)}
-  $("#camStart").hidden=false;$("#camStop").hidden=true;const cv=$("#cv");cv.getContext("2d").clearRect(0,0,cv.width,cv.height)}
-function camDraw(){if(!camOn)return;raf=requestAnimationFrame(camDraw);const cv=$("#cv"),box=$("#camwrap").getBoundingClientRect(),dpr=window.devicePixelRatio||1;
-  if(cv.width!==Math.round(box.width*dpr)||cv.height!==Math.round(box.height*dpr)){cv.width=Math.round(box.width*dpr);cv.height=Math.round(box.height*dpr)}
-  const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);const W=box.width,H=box.height;g.clearRect(0,0,W,H);
-  const hd=hasOri?heading:manualHdg;if(hd==null){return}
-  $("#hudHead").textContent="Facing "+Math.round(hd)+"° "+dirName(hd);
-  const vf=FOV_H*H/W,hy=clamp(H/2+pitch*(H/vf),H*.2,H*.85);
-  // horizon line
-  g.strokeStyle="rgba(255,255,255,.35)";g.setLineDash([6,6]);g.beginPath();g.moveTo(0,hy);g.lineTo(W,hy);g.stroke();g.setLineDash([]);
-  if(!S.user)return;const u=S.user,uxy=toXY(u.lat,u.lon),R=rankNow(),rk={};R.forEach((e,i)=>rk[e.z.id]=e);
-  const items=S.zones.map(z=>{const d=Math.hypot(z.x-uxy.x,z.y-uxy.y),b=bearXY(uxy,z),dx=rel180(b-hd),e=rk[z.id];return{z,d,b,dx,e}}).filter(o=>o.d<4000).sort((a,b)=>b.d-a.d);
-  g.textAlign="center";let best=null;
-  items.forEach(o=>{if(o.e&&(!best||o.e.score>best.e.score))best=o;const x=W/2+o.dx/FOV_H*W;if(Math.abs(o.dx)>FOV_H/2+6)return;
-    const y=hy+28+clamp(150*Math.exp(-o.d/260),0,150)*(H/700);const st=o.e?o.e.signal:"Limited",col=st==="Strong"?"#3fd08a":st==="Mixed"?"#f0b429":"#ef6b6b";
-    g.font="700 13px system-ui";const t1=o.z.name,t2=fmtDist(o.d)+(o.e?" · "+o.e.signal:"");const w=Math.max(g.measureText(t1).width,g.measureText(t2).width)+18;
-    g.fillStyle="rgba(5,12,20,.78)";g.beginPath();g.roundRect?g.roundRect(x-w/2,y-34,w,42,9):g.rect(x-w/2,y-34,w,42);g.fill();g.strokeStyle=col;g.lineWidth=2;g.stroke();
-    g.fillStyle="#fff";g.fillText(t1,x,y-17);g.font="12px system-ui";g.fillStyle=col;g.fillText(t2,x,y-2);
-    g.fillStyle=col;g.beginPath();g.moveTo(x,y+14);g.lineTo(x-7,y+6);g.lineTo(x+7,y+6);g.fill()});
-  // off-screen guide to best spot
-  if(best&&Math.abs(best.dx)>FOV_H/2){const left=best.dx<0;g.font="700 13px system-ui";g.fillStyle="rgba(5,12,20,.8)";const t=(left?"◀ ":"")+best.z.name+" · "+fmtDist(best.d)+(left?"":" ▶");const w=g.measureText(t).width+18;const x=left?w/2+8:W-w/2-8;g.fillRect(x-w/2,H-54,w,32);g.fillStyle="#fff";g.fillText(t,x,H-33)}}
+  arNote("");const wrap=$("#camwrap");wrap.classList.add("full");document.body.classList.add("arOn");
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false});const v=$("#vid");v.srcObject=stream;await v.play().catch(()=>{})}
+  catch(e){arNote(window.isSecureContext===false?"Camera needs a secure page.":"Camera unavailable ("+(e&&e.name==="NotAllowedError"?"permission denied":"no camera")+"). Showing the 3D view without video.")}
+  try{if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function"){const r=await DeviceOrientationEvent.requestPermission();if(r!=="granted")arNote("Motion access was denied. Use the slider below to turn the view.")}}catch(e){}
+  hasOri=false;absSeen=false;qS=null;yawFix=null;
+  window.addEventListener("deviceorientationabsolute",onOri,true);window.addEventListener("deviceorientation",onOri,true);
+  camOn=true;$("#camStart").hidden=true;
+  clearTimeout(oriTimer);oriTimer=setTimeout(()=>{if(!hasOri){$("#camManual").hidden=false;arNote("No motion sensors found. Turn the view with the slider.")}},2500);
+  cancelAnimationFrame(raf);raf=requestAnimationFrame(arFrame)}
+function camStop(){camOn=false;cancelAnimationFrame(raf);clearTimeout(oriTimer);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("#vid").srcObject=null;
+  window.removeEventListener("deviceorientationabsolute",onOri,true);window.removeEventListener("deviceorientation",onOri,true);
+  $("#camwrap").classList.remove("full");document.body.classList.remove("arOn");$("#camStart").hidden=false;$("#camManual").hidden=true;const cv=$("#cv");cv.getContext("2d").clearRect(0,0,cv.width,cv.height);$("#arCard").hidden=true}
+function arAlign(){const h=hereInfo();if(!h||h.far){toast("Walk to the water's edge first");return}const cur=headOfM(curM());userYaw=rel180(userYaw+rel180(h.waterDir-cur));toast("Aligned. Straight ahead is the water to the "+dirName(h.waterDir))}
+let arPick=null;
+function arFrame(){if(!camOn)return;raf=requestAnimationFrame(arFrame);
+  const cv=$("#cv"),box=$("#camwrap").getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1),W=box.width,H=box.height;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+  const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  if(!S.user||!S.lake)return;
+  const m=curM(),hd=headOfM(m);
+  // field of view from the actual video frame and how it's cropped on screen
+  const v=$("#vid"),vw=v.videoWidth||W,vh=v.videoHeight||H,sc=Math.max(W/vw,H/vh),frameH=vw>=vh?63:48,frac=(W/sc)/vw,hfov=2*Math.atan(Math.tan(frameH*D2R/2)*frac),f=(W/2)/Math.tan(hfov/2);
+  const ang=((screen.orientation&&screen.orientation.angle)||window.orientation||0)*D2R,ca=Math.cos(ang),sa=Math.sin(ang);
+  // smoothed user position (m)
+  const u=toXY(S.user.lat,S.user.lon);uS=uS?{x:uS.x+(u.x-uS.x)*.15,y:uS.y+(u.y-uS.y)*.15}:u;
+  const proj=(x,y,z)=>{const E=x-uS.x,N=-(y-uS.y),U=z-EYE;const dx=m[0]*E+m[3]*N+m[6]*U,dy=m[1]*E+m[4]*N+m[7]*U,dz=m[2]*E+m[5]*N+m[8]*U;const sx=dx*ca-dy*sa,sy=dx*sa+dy*ca;return{d:-dz,sx,sy}};
+  const toS=p=>({x:W/2+f*p.sx/p.d,y:H/2-f*p.sy/p.d});
+  const NEAR=.6;
+  function polyPath(ring,close){const P=ring.map(p=>proj(p.x,p.y,0)),out=[];
+    for(let i=0;i<P.length;i++){const a=P[i],b=P[(i+1)%P.length];if(!close&&i===P.length-1){if(a.d>NEAR)out.push(a);break}
+      if(a.d>NEAR)out.push(a);if((a.d>NEAR)!==(b.d>NEAR)){const t=(NEAR-a.d)/(b.d-a.d);out.push({d:NEAR,sx:a.sx+(b.sx-a.sx)*t,sy:a.sy+(b.sy-a.sy)*t})}}
+    g.beginPath();out.forEach((p,i)=>{const s=toS(p);i?g.lineTo(s.x,s.y):g.moveTo(s.x,s.y)});if(close)g.closePath();return out.length>2}
+  function strokeRing(ring,close,maxD){const P=ring.map(p=>proj(p.x,p.y,0)),n=P.length,far=maxD?ring.map(p=>Math.hypot(p.x-uS.x,p.y-uS.y)>maxD):null;g.beginPath();let pen=false,any=false;
+    for(let i=0;i<(close?n:n-1);i++){let a=P[i],b=P[(i+1)%n];if((a.d<=NEAR&&b.d<=NEAR)||(far&&far[i]&&far[(i+1)%n])){pen=false;continue}
+      if(a.d<=NEAR){const t=(NEAR-a.d)/(b.d-a.d);a={d:NEAR,sx:a.sx+(b.sx-a.sx)*t,sy:a.sy+(b.sy-a.sy)*t};pen=false}
+      let bb=b;if(b.d<=NEAR){const t=(NEAR-a.d)/(b.d-a.d);bb={d:NEAR,sx:a.sx+(b.sx-a.sx)*t,sy:a.sy+(b.sy-a.sy)*t}}
+      const sa=toS(a),sb=toS(bb);if(!pen){g.moveTo(sa.x,sa.y);pen=true}g.lineTo(sb.x,sb.y);any=true;if(b.d<=NEAR)pen=false}
+    return any}
+  // horizon + compass ticks
+  const hz=[];for(const b of [0,45,90,135,180,225,270,315]){const p=proj(uS.x+Math.sin(b*D2R)*5000,uS.y-Math.cos(b*D2R)*5000,EYE);if(p.d>1)hz.push([b,toS(p)])}
+  g.font="700 13px system-ui";g.textAlign="center";g.fillStyle="rgba(255,255,255,.85)";hz.forEach(([b,s])=>{g.fillText(["N","NE","E","SE","S","SW","W","NW"][b/45],s.x,s.y-6);g.fillRect(s.x-1,s.y-2,2,8)});
+  // water + shoreline
+  const l=S.lake;
+  if(polyPath(l.main,true)){g.fillStyle="rgba(43,181,245,.16)";g.fill()}
+  if(strokeRing(l.main,true,450)){g.strokeStyle="rgba(140,220,255,.95)";g.lineWidth=3;g.shadowColor="rgba(43,181,245,.9)";g.shadowBlur=10;g.stroke();g.shadowBlur=0}
+  l.inners.forEach(r=>{if(strokeRing(r,true,450)){g.strokeStyle="rgba(140,220,255,.7)";g.lineWidth=2;g.stroke()}});
+  // cast ring + lanes from where you stand
+  const h=hereInfo();
+  if(h&&!h.far){const ring=[];for(let i=0;i<=48;i++){const a=i/48*2*Math.PI;ring.push({x:h.O.x+Math.sin(a)*CAST,y:h.O.y-Math.cos(a)*CAST})}
+    if(strokeRing(ring,false)){g.setLineDash([8,8]);g.strokeStyle="rgba(255,255,255,.55)";g.lineWidth=2;g.stroke();g.setLineDash([])}
+    h.lanes.forEach((ln,i)=>{const e={x:h.O.x+Math.sin(ln.b*D2R)*CAST*.92,y:h.O.y-Math.cos(ln.b*D2R)*CAST*.92};
+      if(strokeRing([h.O,e],false)){g.strokeStyle="rgba(63,208,138,.95)";g.lineWidth=5;g.lineCap="round";g.stroke()}
+      const p=proj(e.x,e.y,0);if(p.d>NEAR){const s=toS(p),r=clamp(260/p.d,9,22);g.fillStyle="#3fd08a";g.beginPath();g.arc(s.x,s.y,r,0,7);g.fill();g.fillStyle="#05121c";g.font=`800 ${Math.round(r*1.1)}px system-ui`;g.fillText(String(i+1),s.x,s.y+r*.4)}})}
+  // spot pins standing on the water
+  const R=rankNow(),rk={};R.forEach((e,i)=>rk[e.z.id]={e,i});
+  const items=S.zones.map(z=>{const p0=proj(z.x,z.y,0),d=Math.hypot(z.x-uS.x,z.y-uS.y),top=proj(z.x,z.y,clamp(3+d*.025,3,30));return{z,d,p0,top,w:rk[z.id]}}).filter(o=>o.d<2000&&o.d>15);
+  const vis=items.filter(o=>o.top.d>NEAR&&o.p0.d>NEAR).map(o=>Object.assign(o,{s0:toS(o.p0),st:toS(o.top)})).filter(o=>o.st.x>-80&&o.st.x<W+80&&o.st.y>-40&&o.st.y<H+40);
+  vis.sort((a,b)=>a.d-b.d);const placed=[];let center=null,cbest=1e9;
+  vis.forEach(o=>{const sc=clamp(1.25-o.d/1600,.72,1.2);g.font=`700 ${Math.round(14*sc)}px system-ui`;const t1=o.z.name,t2=fmtDist(o.d)+(o.w?" · "+o.w.e.signal:"");const bw=Math.max(g.measureText(t1).width,g.measureText(t2).width)+20,bh=44*sc;
+    let y=o.st.y-bh;const x=o.st.x-bw/2;let tries=0;while(placed.some(p=>x<p.x+p.w&&x+bw>p.x&&y<p.y+p.h&&y+bh>p.y)&&tries++<6)y-=bh+4;
+    o.box={x,y,w:bw,h:bh,sc,t1,t2};placed.push(o.box);const dc=Math.abs(o.st.x-W/2)+Math.abs(o.box.y+bh/2-H/2)*.5;if(dc<cbest&&Math.abs(o.st.x-W/2)<W*.18){cbest=dc;center=o}});
+  vis.slice().reverse().forEach(o=>{const st=o.w?o.w.e.signal:"Limited",col=st==="Strong"?"#3fd08a":st==="Mixed"?"#f0b429":"#ef6b6b",b=o.box,hi=o===center;
+    g.strokeStyle=col;g.lineWidth=2;g.beginPath();g.moveTo(o.s0.x,o.s0.y);g.lineTo(o.st.x,b.y+b.h);g.stroke();
+    g.fillStyle=col;g.beginPath();g.ellipse(o.s0.x,o.s0.y,clamp(220/o.p0.d,3,14),clamp(80/o.p0.d,1.5,5),0,0,7);g.fill();
+    g.fillStyle=hi?"rgba(10,30,45,.92)":"rgba(5,12,20,.78)";g.beginPath();g.roundRect?g.roundRect(b.x,b.y,b.w,b.h,10):g.rect(b.x,b.y,b.w,b.h);g.fill();g.strokeStyle=col;g.lineWidth=hi?3:2;g.stroke();
+    g.fillStyle="#fff";g.font=`700 ${Math.round(14*b.sc)}px system-ui`;g.fillText(b.t1,b.x+b.w/2,b.y+b.h*.43);g.fillStyle=col;g.font=`${Math.round(12*b.sc)}px system-ui`;g.fillText(b.t2,b.x+b.w/2,b.y+b.h*.82)});
+  // guide to the best spot when it's off screen
+  const best=items.filter(o=>o.w).sort((a,b)=>b.w.e.score-a.w.e.score)[0];
+  if(best&&!vis.includes(best)){const bb=bearXY(uS,best.z),dx=rel180(bb-hd),left=dx<0;g.font="700 14px system-ui";const t=(left?"◀ ":"")+"Best: "+best.z.name+" · "+fmtDist(best.d)+(left?"":" ▶");const tw=g.measureText(t).width+22,x=left?tw/2+10:W-tw/2-10,y=H*.32;
+    g.fillStyle="rgba(5,12,20,.85)";g.beginPath();g.roundRect?g.roundRect(x-tw/2,y-18,tw,34,17):g.rect(x-tw/2,y-18,tw,34);g.fill();g.fillStyle="#fff";g.fillText(t,x,y+5)}
+  // reticle
+  g.strokeStyle="rgba(255,255,255,.6)";g.lineWidth=1.5;g.beginPath();g.arc(W/2,H/2,14,0,7);g.moveTo(W/2-22,H/2);g.lineTo(W/2-8,H/2);g.moveTo(W/2+8,H/2);g.lineTo(W/2+22,H/2);g.stroke();
+  // HUD
+  $("#hudHead").textContent=dirName(hd)+" "+(Math.round(hd)%360)+"°"+(S.user.acc?" · GPS ±"+Math.round(S.user.acc*3.28)+" ft":"");
+  if(center!==arPick){arPick=center;const c=$("#arCard");if(center&&center.w){const e=center.w.e;c.hidden=false;c.innerHTML=`<b>${esc(center.z.name)}</b> <span class="sig ${e.signal}">${e.signal}</span><div class="small">${esc(TYPE_LABEL[center.z.type])} · ${fmtDist(center.d)} · ${esc(e.f[1].t)}</div>`;c.dataset.z=center.z.id}else c.hidden=true}}
 
 /* ============ log / plans / share ============ */
 function zoneById(id){return S.zones.find(z=>z.id===id)}
@@ -831,10 +907,12 @@ document.addEventListener("click",e=>{const t=e.target.closest("button,[data-ope
    case"condBtn":condSheet();break;
    case"refreshBtn":{S.tab="welcome";$("#nav").hidden=true;setTab("welcome");break}
    case"camStart":camStart();break;case"camStop":camStop();break;
+   case"arAlign":arAlign();break;case"arL":userYaw-=3;break;case"arR":userYaw+=3;break;
    case"logAdd":logSheet();break;case"shareBtn":share();break;
    case"resetBtn":if(confirm("Clear saved lakes, plans and catches on this phone?")){try{localStorage.removeItem(KEY)}catch(x){}location.reload()}break}});
 $("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet()});
 $("#fb").addEventListener("input",e=>{S.fb=e.target.value;persist()});
+$("#arCard").addEventListener("click",e=>{const id=e.currentTarget.dataset.z;if(id)zoneSheet(id)});
 $("#hdg").addEventListener("input",e=>{manualHdg=+e.target.value;$("#hdgv").textContent=manualHdg+"°"});
 $("#q").addEventListener("keydown",e=>{if(e.key==="Enter")doSearch()});
 async function doSearch(){const q=$("#q").value.trim();if(!q)return;$("#qRes").innerHTML='<div class="muted small" style="margin-top:8px">Searching…</div>';
@@ -844,7 +922,7 @@ async function doSearch(){const q=$("#q").value.trim();if(!q)return;$("#qRes").i
 window.addEventListener("online",()=>{S.offline=false;renderChip()});window.addEventListener("offline",renderChip);
 if(S.saved)showResume();
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))navigator.serviceWorker.register("sw.js").catch(()=>{});
-window.__sv={S,start,rankNow,buildZones,parseWater,compassHeading};
+window.__sv={S,start,rankNow,buildZones,parseWater,hereInfo};
 </script>
 </body>
 </html>
