@@ -45,8 +45,11 @@ def pack(g):  # flat [lat,lon,lat,lon,...] at ~1 m precision
 def build(region):
     s, w, n, e = region["bbox"]
     bb = f"{s},{w},{n},{e}"
-    water = overpass(f'[out:json][timeout:240][bbox:{bb}];(way["natural"="water"]{NOTRIV};relation["natural"="water"]{NOTRIV};way["landuse"="reservoir"];);out geom tags;')
-    access = overpass(f'[out:json][timeout:120][bbox:{bb}];(nwr["leisure"~"^(fishing|slipway)$"];nwr["man_made"="pier"];nwr["waterway"="dam"];);out center tags;')
+    water = overpass(f'[out:json][timeout:240];(way["natural"="water"]{NOTRIV}({bb});relation["natural"="water"]{NOTRIV}({bb});way["landuse"="reservoir"]({bb});relation["landuse"="reservoir"]({bb}););out geom tags;')
+    access = overpass(f'[out:json][timeout:120];(nwr["leisure"~"^(fishing|slipway)$"]({bb});nwr["man_made"="pier"]({bb});nwr["waterway"="dam"]({bb}););out center tags;')
+    from collections import Counter
+    print("  raw:", Counter(el["type"] for el in water["elements"]),
+          "relations with member geometry:", sum(1 for el in water["elements"] if el["type"] == "relation" and any(m.get("geometry") for m in el.get("members", []))))
     keep_tags = ("name", "natural", "water", "landuse")
     W = []
     for el in water["elements"]:

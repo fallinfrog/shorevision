@@ -388,6 +388,20 @@ async function overpass(q){const errs=[];
       if(!j||!Array.isArray(j.elements))throw new Error("bad reply");if(!j.elements.length&&j.remark&&/error|timeout|memory/i.test(j.remark))throw new Error("server busy");return j}
     catch(x){errs.push((new URL(e)).hostname+": "+(x&&x.name==="AbortError"?"timeout":(x&&x.message)||x));throw x}};
   try{return await Promise.any(OVP.map(one))}catch(x){const m=new Error("Lake map servers: "+errs.join("; "));throw m}}
+
+/* bundled lake snapshots (built weekly by GitHub Actions from OpenStreetMap) */
+let REGIONS=null;
+async function bundledLakes(loc){
+  try{if(!REGIONS)REGIONS=await fetchJSON("data/regions.json",{},8000)}catch(e){REGIONS=[];return null}
+  const r=(REGIONS||[]).find(r=>loc.lat>=r.bbox[0]&&loc.lat<=r.bbox[2]&&loc.lon>=r.bbox[1]&&loc.lon<=r.bbox[3]);if(!r)return null;
+  const d=await fetchJSON("data/"+r.id+".json",{},25000),R=6500,kx=Math.cos(loc.lat*D2R)*111320;
+  const near=a=>{for(let i=0;i<a.length;i+=2){const dx=(a[i+1]-loc.lon)*kx,dy=(a[i]-loc.lat)*110540;if(dx*dx+dy*dy<R*R)return true}return false};
+  const un=a=>{const o=[];for(let i=0;i<a.length;i+=2)o.push({lat:a[i],lon:a[i+1]});return o};
+  const el=[];
+  d.water.forEach(w=>{if(w.t==="w"){if(near(w.g))el.push({type:"way",id:w.id,tags:w.tags,geometry:un(w.g)})}
+    else if(w.m.some(m=>near(m.g)))el.push({type:"relation",id:w.id,tags:w.tags,members:w.m.map(m=>({type:"way",role:m.r,geometry:un(m.g)}))})});
+  const ac=d.access.filter(a=>hav(a,loc)<R).map((a,i)=>({type:"node",id:i,lat:a.lat,lon:a.lon,tags:a.tags}));
+  return{water:{elements:el},access:{elements:ac},built:d.built,name:r.name}}
 let R_M=3500;const NOTRIV='["water"!~"^(river|stream|canal|ditch|drain|rapids|lock|oxbow|wastewater)$"]';
 const qWater=(la,lo)=>`[out:json][timeout:25];(way["natural"="water"]${NOTRIV}(around:${R_M},${la},${lo});relation["natural"="water"]${NOTRIV}(around:${R_M},${la},${lo});way["landuse"="reservoir"](around:${R_M},${la},${lo}););out geom tags;`;
 const qAccess=(la,lo)=>`[out:json][timeout:25];(nwr["leisure"~"^(fishing|slipway)$"](around:${R_M},${la},${lo});nwr["man_made"="pier"](around:${R_M},${la},${lo});nwr["waterway"="dam"](around:${R_M},${la},${lo}););out center tags;`;
@@ -489,7 +503,7 @@ async function geocode(q){const j=await fetchJSON("https://nominatim.openstreetm
 function showErr(m){const e=$("#loadErr");e.hidden=!m;e.textContent=m||""}
 let startBusy=false;
 async function start(mode,loc){
-  if(startBusy)return;startBusy=true;showErr("");S.demo=mode==="demo";S.offline=false;
+  if(startBusy)return;startBusy=true;showErr("");S.demo=mode==="demo";S.offline=false;S.mapBuilt=null;
   try{
     setSteps([{id:"loc",t:"Finding your location",s:"run"},{id:"lake",t:"Finding lakes nearby"},{id:"wx",t:"Getting today's weather"},{id:"zone",t:"Reading the shoreline"}]);
     if(mode==="gps"){loc=await getPos()}
@@ -500,6 +514,8 @@ async function start(mode,loc){
     const wxP=(mode==="demo"?Promise.resolve(demoWx()):getWeather(loc.lat,loc.lon)).then(w=>{stepSet("wx","ok","Weather: "+(w.place||"loaded"));return w}).catch(e=>{stepSet("wx","err","Weather unavailable. Using manual conditions.");return null});
     let wj,aj;
     const getAll=async()=>Promise.all([mode==="demo"?Promise.resolve(demoWater()):overpass(qWater(loc.lat,loc.lon)),mode==="demo"?Promise.resolve({elements:[]}):overpass(qAccess(loc.lat,loc.lon)).catch(()=>({elements:[]}))]);
+    let bundle=null;if(mode!=="demo"){try{bundle=await bundledLakes(loc)}catch(e){bundle=null}}
+    if(bundle&&bundle.water.elements.length){wj=bundle.water;aj=bundle.access;S.mapBuilt=bundle.built}else
     try{try{[wj,aj]=await getAll()}catch(e1){stepSet("lake","run","Map servers are busy, retrying");await new Promise(r=>setTimeout(r,2500));R_M=1800;[wj,aj]=await getAll()}}
     catch(e){
       if(mode!=="demo"&&S.saved&&!S.saved.demo&&S.saved.loc&&hav(S.saved.loc,loc)<8000){stepSet("lake","ok","Map servers busy, using your saved lakes");const w=await wxP;useSaved(w,loc);return}
@@ -508,7 +524,7 @@ async function start(mode,loc){
     let lakes=parseWater(wj);S.access=parseAccess(aj);
     if(!lakes.length){stepSet("lake","err","No mapped lakes within 2 miles");S.wx=await wxP;throw new Error("No mapped lakes or ponds within about 2 miles. Try searching for the lake by name, or move closer to the water.")}
     lakes.sort((a,b)=>(a.inside?0:1)-(b.inside?0:1)||a.dist-b.dist);
-    stepSet("lake","ok",lakes.length+" water bod"+(lakes.length>1?"ies":"y")+" found");
+    stepSet("lake","ok",lakes.length+" water bod"+(lakes.length>1?"ies":"y")+" found"+(S.mapBuilt?" (saved map, no server needed)":""));
     S.wx=await wxP;if(!S.wx)S.wx=manualWx();
     S.lakes=lakes;
     const named=lakes.filter(l=>l.dist<1500&&l.area>20000).sort((a,b)=>a.dist-b.dist)[0];
