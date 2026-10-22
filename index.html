@@ -388,8 +388,8 @@ async function overpass(q){const errs=[];
       if(!j||!Array.isArray(j.elements))throw new Error("bad reply");if(!j.elements.length&&j.remark&&/error|timeout|memory/i.test(j.remark))throw new Error("server busy");return j}
     catch(x){errs.push((new URL(e)).hostname+": "+(x&&x.name==="AbortError"?"timeout":(x&&x.message)||x));throw x}};
   try{return await Promise.any(OVP.map(one))}catch(x){const m=new Error("Lake map servers: "+errs.join("; "));throw m}}
-let R_M=6500;
-const qWater=(la,lo)=>`[out:json][timeout:25];(way["natural"="water"](around:${R_M},${la},${lo});relation["natural"="water"](around:${R_M},${la},${lo});way["landuse"="reservoir"](around:${R_M},${la},${lo}););out geom tags;`;
+let R_M=3500;const NOTRIV='["water"!~"^(river|stream|canal|ditch|drain|rapids|lock|oxbow|wastewater)$"]';
+const qWater=(la,lo)=>`[out:json][timeout:25];(way["natural"="water"]${NOTRIV}(around:${R_M},${la},${lo});relation["natural"="water"]${NOTRIV}(around:${R_M},${la},${lo});way["landuse"="reservoir"](around:${R_M},${la},${lo}););out geom tags;`;
 const qAccess=(la,lo)=>`[out:json][timeout:25];(nwr["leisure"~"^(fishing|slipway)$"](around:${R_M},${la},${lo});nwr["man_made"="pier"](around:${R_M},${la},${lo});nwr["waterway"="dam"](around:${R_M},${la},${lo}););out center tags;`;
 function stitch(ways){const key=p=>p.lat.toFixed(6)+","+p.lon.toFixed(6),rings=[],pool=ways.map(w=>w.slice());
   while(pool.length){let cur=pool.pop(),g=0;
@@ -500,11 +500,13 @@ async function start(mode,loc){
     const wxP=(mode==="demo"?Promise.resolve(demoWx()):getWeather(loc.lat,loc.lon)).then(w=>{stepSet("wx","ok","Weather: "+(w.place||"loaded"));return w}).catch(e=>{stepSet("wx","err","Weather unavailable. Using manual conditions.");return null});
     let wj,aj;
     const getAll=async()=>Promise.all([mode==="demo"?Promise.resolve(demoWater()):overpass(qWater(loc.lat,loc.lon)),mode==="demo"?Promise.resolve({elements:[]}):overpass(qAccess(loc.lat,loc.lon)).catch(()=>({elements:[]}))]);
-    try{try{[wj,aj]=await getAll()}catch(e1){stepSet("lake","run","Map servers are busy, trying a smaller area");R_M=2500;[wj,aj]=await getAll()}}
-    catch(e){stepSet("lake","err","Couldn't reach the lake map service");S.wx=await wxP;throw new Error("The lake map servers didn't respond ("+(e&&e.message||"unknown")+"). They are free community servers and are sometimes busy. Wait a minute and tap Find fishing spots again."+(S.saved?" Or use your last saved lakes below.":""))}
-    finally{R_M=6500}
+    try{try{[wj,aj]=await getAll()}catch(e1){stepSet("lake","run","Map servers are busy, retrying");await new Promise(r=>setTimeout(r,2500));R_M=1800;[wj,aj]=await getAll()}}
+    catch(e){
+      if(mode!=="demo"&&S.saved&&!S.saved.demo&&S.saved.loc&&hav(S.saved.loc,loc)<8000){stepSet("lake","ok","Map servers busy, using your saved lakes");const w=await wxP;useSaved(w,loc);return}
+      stepSet("lake","err","Couldn't reach the lake map service");S.wx=await wxP;throw new Error("The lake map servers didn't respond ("+(e&&e.message||"unknown")+"). They are free community servers and are sometimes busy. Wait a minute and tap Find fishing spots again."+(S.saved?" Or use your last saved lakes below.":""))}
+    finally{R_M=3500}
     let lakes=parseWater(wj);S.access=parseAccess(aj);
-    if(!lakes.length){stepSet("lake","err","No mapped lakes within 4 miles");S.wx=await wxP;throw new Error("No mapped lakes or ponds within about 4 miles. Try searching for the lake by name, or move closer to the water.")}
+    if(!lakes.length){stepSet("lake","err","No mapped lakes within 2 miles");S.wx=await wxP;throw new Error("No mapped lakes or ponds within about 2 miles. Try searching for the lake by name, or move closer to the water.")}
     lakes.sort((a,b)=>(a.inside?0:1)-(b.inside?0:1)||a.dist-b.dist);
     stepSet("lake","ok",lakes.length+" water bod"+(lakes.length>1?"ies":"y")+" found");
     S.wx=await wxP;if(!S.wx)S.wx=manualWx();
@@ -518,13 +520,13 @@ async function start(mode,loc){
 function selectLake(id,quiet){const l=S.lakes.find(x=>x.id===id)||S.lakes[0];S.lake=l;S.zones=buildZones(l,S.access);S.sel=null;M.fitted=false;if(!quiet){renderAll();mapFit()}}
 function saveSession(){try{const lk=S.lakes.slice(0,12).map(l=>({id:l.id,name:l.name,area:l.area,dist:l.dist,inside:l.inside,kind:l.kind,main:decimate(l.main,l===S.lake?700:220),outers:l.outers.map((r,i)=>decimate(r,i&&l!==S.lake?120:l===S.lake?700:220)),inners:l.inners.slice(0,6).map(r=>decimate(r,80)),center:l.center,bbox:l.bbox}));
   persist({t:Date.now(),loc:S.loc,lakes:lk,access:S.access.slice(0,40),wx:S.wx&&S.wx.ok?Object.assign({},S.wx,{hours:S.wx.hours.slice(0,30)}):null,lakeId:S.lake&&S.lake.id,demo:S.demo})}catch(e){}}
-function useSaved(){const s=S.saved;if(!s)return;ORG={lat:s.loc.lat,lon:s.loc.lon};S.loc=s.loc;S.user={lat:s.loc.lat,lon:s.loc.lon,acc:0};S.demo=!!s.demo;S.offline=true;S.lakes=s.lakes;S.access=s.access||[];
-  S.wx=s.wx?Object.assign({},s.wx,{hours:s.wx.hours.map(h=>Object.assign({},h,{t:new Date(h.t)}))}):manualWx();
+function useSaved(freshWx,here){const s=S.saved;if(!s)return;ORG={lat:s.loc.lat,lon:s.loc.lon};S.loc=s.loc;S.user=here?{lat:here.lat,lon:here.lon,acc:here.acc||0}:{lat:s.loc.lat,lon:s.loc.lon,acc:0};S.demo=!!s.demo;S.offline=true;S.lakes=s.lakes;S.access=s.access||[];
+  if(freshWx&&freshWx.ok){S.wx=freshWx}else S.wx=s.wx?Object.assign({},s.wx,{hours:s.wx.hours.map(h=>Object.assign({},h,{t:new Date(h.t)}))}):manualWx();
   const m=new Date().getMonth();S.fall=ORG.lat>=0?(m>=8&&m<=10):(m>=2&&m<=4);
   // old hours are stale: drop those already past
-  if(S.wx.hours.length){const now=Date.now()-36e5;S.wx.hours=S.wx.hours.filter(h=>h.t.getTime()>=now);if(!S.wx.hours.length)S.wx=manualWx()}
+  if(S.wx.hours.length&&!(freshWx&&freshWx.ok)){const now=Date.now()-36e5;S.wx.hours=S.wx.hours.filter(h=>h.t.getTime()>=now);if(!S.wx.hours.length)S.wx=manualWx()}
   selectLake(s.lakeId,true);enterApp();startGpsWatch()}
-function showResume(){const s=S.saved;if(!s)return;const r=$("#resume");r.hidden=false;r.innerHTML=`<b>Last session saved</b><div class="small muted">${new Date(s.t).toLocaleString()} · ${s.lakes.length} lakes</div><button class="btn block" style="margin-top:10px" id="resBtn">Use saved lakes (works offline)</button>`;$("#resBtn").onclick=useSaved}
+function showResume(){const s=S.saved;if(!s)return;const r=$("#resume");r.hidden=false;r.innerHTML=`<b>Last session saved</b><div class="small muted">${new Date(s.t).toLocaleString()} · ${s.lakes.length} lakes</div><button class="btn block" style="margin-top:10px" id="resBtn">Use saved lakes (works offline)</button>`;$("#resBtn").onclick=()=>useSaved()}
 function enterApp(){$("#nav").hidden=false;setTab("today");renderAll();startGpsWatch();setTimeout(mapFit,50)}
 function setTab(t){S.tab=t;$$("main>section").forEach(s=>s.classList.toggle("on",s.id===t));$$("#nav button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.t===t)));window.scrollTo(0,0);
   if(t==="map-tab"){mapResize();if(!M.fitted)mapFit();else renderMap()}if(t!=="cam-tab"&&camOn)camStop();if(t==="log-tab")renderLog()}
@@ -548,7 +550,7 @@ function rankNow(c){c=c||condAt(0);let L=eligible();if(!L.length)L=S.zones.slice
   const r=L.map(z=>evaluate(S.species,z,c));r.sort((a,b)=>b.score-a.score||distToUser(a.z)-distToUser(b.z));return r}
 function activity(sp,c){const v=.55*phaseOf(sp,c.water)[3]+.25*(isLow(c)?1:.5)+.2*pressVal(c);return v}
 function renderAll(){renderChip();renderToday();if(S.tab==="map-tab")renderMap();renderLog()}
-function renderChip(){const c=$("#chip");if(S.demo){c.className="chip demo";c.textContent="Demo data"}else if(S.offline||!navigator.onLine){c.className="chip off";c.textContent="Offline · saved"}else if(S.wx&&S.wx.ok){c.className="chip live";c.textContent="Live data"}else{c.className="chip";c.textContent="Manual weather"}}
+function renderChip(){const c=$("#chip");if(S.demo){c.className="chip demo";c.textContent="Demo data"}else if(!navigator.onLine){c.className="chip off";c.textContent="Offline · saved"}else if(S.offline){c.className="chip demo";c.textContent="Saved lakes"}else if(S.wx&&S.wx.ok){c.className="chip live";c.textContent="Live data"}else{c.className="chip";c.textContent="Manual weather"}}
 function renderToday(){
   if(!S.lake)return;
   $("#lakeBtn").textContent=(S.lake.name||"Unnamed "+(S.lake.area<40000?"pond":"lake"))+" · "+fmtAcres(S.lake.area)+" ▾";
@@ -556,7 +558,7 @@ function renderToday(){
   const soon=S.wx&&S.wx.hours.slice(0,12);
   if(soon&&soon.some(h=>/thunder/i.test(h.short)))alerts.push(["bad","Thunderstorms in the forecast in the next 12 hours. Stay off open water and away from the shore if you hear thunder."]);
   if(c.wind>=20)alerts.push(["bad","Strong winds ("+c.wind+" mph). Dangerous for small boats."]);else if(c.wind>=15)alerts.push(["warn","Breezy ("+c.wind+" mph). Use caution in a boat and fish the sheltered side."]);
-  if(S.offline)alerts.push(["info","You're using saved data"+(S.saved?" from "+new Date(S.saved.t).toLocaleString():"")+". Tap Refresh when you have signal."]);
+  if(S.offline)alerts.push(["info","Using lakes saved "+(S.saved?new Date(S.saved.t).toLocaleDateString():"earlier")+(S.wx&&S.wx.ok&&navigator.onLine?" with live weather":"")+". The lake map servers were busy or you're offline. Tap Refresh later to update."]);
   if(S.demo)alerts.push(["warn","Demo lake with sample weather, so you can try everything. Tap Refresh and choose your location to use real data."]);
   if(S.wx&&!S.wx.ok&&!S.demo)alerts.push(["warn","Live weather isn't available here, so using the conditions you set. Tap Adjust conditions to update them."]);
   $("#alerts").innerHTML=alerts.map(a=>`<div class="banner ${a[0]}">${esc(a[1])}</div>`).join("");
