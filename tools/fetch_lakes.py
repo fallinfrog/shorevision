@@ -45,7 +45,7 @@ def pack(g):  # flat [lat,lon,lat,lon,...] at ~1 m precision
 def build(region):
     s, w, n, e = region["bbox"]
     bb = f"{s},{w},{n},{e}"
-    water = overpass(f'[out:json][timeout:240];(way["natural"="water"]{NOTRIV}({bb});relation["natural"="water"]{NOTRIV}({bb});way["landuse"="reservoir"]({bb});relation["landuse"="reservoir"]({bb}););out geom tags;')
+    water = overpass(f'[out:json][timeout:240];(way["natural"="water"]{NOTRIV}({bb});relation["natural"="water"]{NOTRIV}({bb});way["landuse"="reservoir"]({bb});relation["landuse"="reservoir"]({bb}););out geom;')
     access = overpass(f'[out:json][timeout:120];(nwr["leisure"~"^(fishing|slipway)$"]({bb});nwr["man_made"="pier"]({bb});nwr["waterway"="dam"]({bb}););out center tags;')
     from collections import Counter
     print("  raw:", Counter(el["type"] for el in water["elements"]),

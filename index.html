@@ -421,7 +421,7 @@ async function bundledLakes(loc){
   const ac=d.access.filter(a=>hav(a,loc)<R).map((a,i)=>({type:"node",id:i,lat:a.lat,lon:a.lon,tags:a.tags}));
   return{water:{elements:el},access:{elements:ac},built:d.built,name:r.name}}
 let R_M=3500;const NOTRIV='["water"!~"^(river|stream|canal|ditch|drain|rapids|lock|oxbow|wastewater)$"]';
-const qWater=(la,lo)=>`[out:json][timeout:25];(way["natural"="water"]${NOTRIV}(around:${R_M},${la},${lo});relation["natural"="water"]${NOTRIV}(around:${R_M},${la},${lo});way["landuse"="reservoir"](around:${R_M},${la},${lo}););out geom tags;`;
+const qWater=(la,lo)=>`[out:json][timeout:25];(way["natural"="water"]${NOTRIV}(around:${R_M},${la},${lo});relation["natural"="water"]${NOTRIV}(around:${R_M},${la},${lo});way["landuse"="reservoir"](around:${R_M},${la},${lo}););out geom;`;
 const qAccess=(la,lo)=>`[out:json][timeout:25];(nwr["leisure"~"^(fishing|slipway)$"](around:${R_M},${la},${lo});nwr["man_made"="pier"](around:${R_M},${la},${lo});nwr["waterway"="dam"](around:${R_M},${la},${lo}););out center tags;`;
 function stitch(ways){const key=p=>p.lat.toFixed(6)+","+p.lon.toFixed(6),rings=[],pool=ways.map(w=>w.slice());
   while(pool.length){let cur=pool.pop(),g=0;
